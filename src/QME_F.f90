@@ -144,470 +144,274 @@ endif
 !
 ! Rate computation
 !
-   subroutine rates (Ndim, NF, NCF, omega, gamma_R_0,A_R, gamma_L_0,A_L,phi,GammaC,&
-   &Temperature,Spin_polarization_R, Spin_polarization_L, G, GC,lambda,orb,seHa)
+   subroutine rates (Ndim, orb, omega, gamma_0, lambda, Spin_polarization,&
+        NCF, p_max, A, phi, B, GammaC, bias, Delta, Cutoff, Temperature,& 
+        seHa, WW, gau, N_int, GA, GCA)
      implicit none
-! Input:
-     integer :: Ndim, NF, NCF
-     complex (qc), intent (in):: lambda (:,:,:)
-     real (q), intent (in):: gamma_R_0, gamma_L_0, Temperature, omega
-     real (q), intent (in):: Spin_polarization_R, Spin_polarization_L
-! Output: the Rates called G (:,:,:,:) here
-     complex (qc), intent (out) :: G (:,:,:,:,:,:) ! for QME_T
-     complex (qc), intent (out) :: GC (:,:,:,:,:,:) ! for Transport_F
-! Computed in ExtendedFermiIntegral
-     complex (qc) :: fermiR1, fermiL1, ufermiR1, ufermiL1
-     complex (qc) :: fermiR2, fermiL2, ufermiR2, ufermiL2
-     complex (qc) :: fermiR3, fermiL3, ufermiR3, ufermiL3
-! Only used in this subroutine
-     integer :: v, l, j, u, pn, lorb
-!      real (q), intent (in) :: gamma_L_1
-     integer, intent(in) :: orb
-     real (q), intent (in) :: phi, seHa
-!      real (q), intent (in) :: gamma_R_1
-     complex (qc), intent (in) :: A_R, A_L,GammaC
-     complex (qc) :: g0p_up, g0m_up, g1p_up, g1m_up
-     complex (qc) :: g0p_dn, g0m_dn, g1p_dn, g1m_dn
-     complex (qc) :: Lvluj, Ljulv
 
-! Driving amplitude by electrode:
-!      A_L=gamma_L_1/gamma_L_0
-!      A_R=gamma_R_1/gamma_R_0
-G=zero
-GC=zero
-!loop on states:
-     do j=1,Ndim
-     do u=1,Ndim
+     integer :: Ndim, NCF, p_max, orb, N_int
+     complex (qc), intent (in), dimension(Ndim,Ndim,orb) :: lambda 
+     real (q), intent (in), dimension(Ndim, Ndim) :: Delta
+     real (q), intent (in) :: gamma_0, Temperature, omega, Spin_polarization
+     real (q), intent (in) :: A, Cutoff, WW, gau, phi, seHa, bias
+     complex (qc), intent (in) :: GammaC, B
 
-     if((lambda(u,j,1).eq.zero).and.(lambda(u,j,2).eq.zero).and.&
-     &((lambda(j,u,1).eq.zero).and.(lambda(j,u,2).eq.zero)))then
-     
-     ! This if will avoid making the integral for rates that are zero always
-     
-     ! Right electrode
-        ! WHAT already set to zero just skip
-            G (:,:,j,u,:,1) = zero
-            GC (:,:,j,u,:,1) = zero
+     complex (qc), intent (out), dimension(Ndim, Ndim, Ndim, Ndim, 2*NCF+1) :: GA, GCA 
+!       G_Alpha and GC_Alpha 
+     complex (qc), dimension(2*p_max-1) :: fermi, ufermi     
+     complex (q), dimension(2*p_max-1) :: K
+     complex (qc) :: g_up, g_dn
+     complex (qc), dimension(Ndim, Ndim) :: Lvluj, Ljulv
+     real(q), dimension(Ndim) :: bessel_contribution, ubessel_contribution
 
-     ! Left electrode
-            G (:,:,j,u,:,2) = zero
-            GC (:,:,j,u,:,2) = zero
-!             write(*,*) lambda(u,j,1), lambda (u,j,2), lambda (j,u,1),  lambda (j,u,2)
-        ! TODO: use continue to skip the rest of the loop no else here 
-     else
+     integer :: j, u, n, n_index
 
-! Green's functions integrals involving occupation factors
-call ExtendedFermiIntegral(Delta(j,u),bias_R,Temperature,Cutoff,dimag(GammaC),N_int,fermiR1,WW,gau)
-call ExtendedFermiIntegral(Delta(j,u),bias_L,Temperature,Cutoff,dimag(GammaC),N_int,fermiL1,WW,gau)
-call ExtendedFermiIntegral(Delta(j,u)+omega,bias_R,Temperature,Cutoff,dimag(GammaC),N_int,fermiR2,WW,gau)
-call ExtendedFermiIntegral(Delta(j,u)+omega,bias_L,Temperature,Cutoff,dimag(GammaC),N_int,fermiL2,WW,gau)
-call ExtendedFermiIntegral(Delta(j,u)-omega,bias_R,Temperature,Cutoff,dimag(GammaC),N_int,fermiR3,WW,gau)
-call ExtendedFermiIntegral(Delta(j,u)-omega,bias_L,Temperature,Cutoff,dimag(GammaC),N_int,fermiL3,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u),bias_R,Temperature,Cutoff,dble(GammaC),N_int,ufermiR1,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u),bias_L,Temperature,Cutoff,dble(GammaC),N_int,ufermiL1,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u)+omega,bias_R,Temperature,Cutoff,dble(GammaC),N_int,ufermiR2,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u)+omega,bias_L,Temperature,Cutoff,dble(GammaC),N_int,ufermiL2,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u)-omega,bias_R,Temperature,Cutoff,dble(GammaC),N_int,ufermiR3,WW,gau)
-call ExtendeduFermiIntegral(Delta(j,u)-omega,bias_L,Temperature,Cutoff,dble(GammaC),N_int,ufermiL3,WW,gau)
-!       AHHHHHHHHHHHHHHHHHH!!!!!!!!!!!!!!!!!!!!!!!
-       
-! FLOQUET n=0
-            pn = 0 + NCF + 1
-!       So the 5 harmonics are always calculated but everything above NCF and below -NCF
-!       is stored outside of the matrix range
-!       AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Right electrode
+        G=zero
+        GC=zero
         
-        ! adding phi azimuthal angle and changing 0.5 in A*A terms to 0.25 (correct value)
-        ! no phase shift in floquet number 0
+        g_up = 0.5*gamma_0*(1+Spin_polarization)
+        g_dn = 0.5*gamma_0*(1-Spin_polarization)
+
+!       Calculate Contribution of Bessel functions
+!       K(p) = J(p) + .5*A*(J(p-1)+ J(p+1))
+        K = Bessel_K(B/omega, A, p_max)
+
+!       loop on states:
+        level_j: do j=1,Ndim
+        level_u: do u=1,Ndim
+
+!       Skip lambda is zero
+        if((lambda(u,j,1).eq.zero).and.(lambda(u,j,2).eq.zero).and.&
+                &((lambda(j,u,1).eq.zero).and.(lambda(j,u,2).eq.zero)))then
+                cycle 
+                ! TODO: should this include other spin channels?
+!               Let the record show that this cycle avoided a 400 line if statement 
+!               when it was originally added.
+        end if
+
+!       Green's functions integrals involving occupation factors
+        call ExtendedFermiIntegral(Delta(j,u), omega, bias, p_max, Temperature, Cutoff, &
+                        GammaC, N_int, WW, gau, fermi, ufermi)
+        call Orbital_overlaps(lambda, j, u, g_up, g_dn, Ndim, Lvluj, Ljulv)
         
-      g0p_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(fermiR1+seHa*0.25*fermiR3*(abs(A_R))**2&
-                +seHa*0.25*fermiR2*(abs(A_R))**2)
-      g0m_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(ufermiR1+seHa*0.25*ufermiR3*(abs(A_R))**2&
-                +seHa*0.25*ufermiR2*(abs(A_R))**2)
-      g0p_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(fermiR1+seHa*0.25*fermiR3*(abs(A_R))**2&
-                +seHa*0.25*fermiR2*(abs(A_R))**2)
-      g0m_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(ufermiR1+seHa*0.25*ufermiR3*(abs(A_R))**2&
-                +seHa*0.25*ufermiR2*(abs(A_R))**2)
+        fourier_component: do n = -NCF, NCF
+               n_index = n + NCF + 1
 
-! Left electrode
+!              contribution of bessel functions
+!              bessel_cont  = sum_p K*_{p-n} K_p  I(p)                              
+!              ubessel_cont = sum_p K*_p K_{p+n}  uI(p) 
+               call compute_bessel_contribution(K, fermi, ufermi, p_max, n, &
+                              bessel_contribution, ubessel_contribution)
+               
+               GA  (:,:,j,u,n_index) = 0.5*(Lvluj*bessel_contribution + Ljulv*ubessel_contribution)
+               GCA (:,:,j,u,n_index) = 0.5*(Lvluj*bessel_contribution - Ljulv*ubessel_contribution)
 
-      g1p_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(fermiL1+seHa*0.25*fermiL3*(abs(A_L))**2&
-                +seHa*0.25*fermiL2*(abs(A_L))**2)
-      g1m_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(ufermiL1+seHa*0.25*ufermiL3*(abs(A_L))**2&
-                +seHa*0.25*ufermiL2*(abs(A_L))**2)
-      g1p_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(fermiL1+seHa*0.25*fermiL3*(abs(A_L))**2&
-                +seHa*0.25*fermiL2*(abs(A_L))**2)
-      g1m_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(ufermiL1+seHa*0.25*ufermiL3*(abs(A_L))**2&
-                +seHa*0.25*ufermiL2*(abs(A_L))**2)
-        
-        do v=1,Ndim
-        do l=1,Ndim
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g0p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g0p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g0m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g0m_dn
-        k=k+1
-            enddo
-            
-! Right electrode
-            G (v,l,j,u,pn,1) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,1) = 0.5*(Lvluj - Ljulv)
-
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g1p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g1p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g1m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g1m_dn
-        k=k+1
-            enddo
-            
-! Left electrode
-            G (v,l,j,u,pn,2) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,2) = 0.5*(Lvluj - Ljulv)
-            
-! write(124,*) hartree*G (v,l,j,u,pn,1),hartree*G (v,l,j,u,pn,2),v,l,j,u,pn
-
-        enddo
-        enddo
-
-! FLOQUET n=-1
-            pn = -1 + NCF + 1
-
-! Right electrode
-
-      g0p_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(0.5*fermiR1*A_R*zexp(ui*phi)+0.5*fermiR3*conjg(A_R)*zexp(ui*phi))
-      g0m_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(0.5*ufermiR1*conjg(A_R)*zexp(ui*phi)+0.5*ufermiR2*A_R*zexp(ui*phi))
-      g0p_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(0.5*fermiR1*A_R*zexp(ui*phi)+0.5*fermiR3*conjg(A_R)*zexp(ui*phi))
-      g0m_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(0.5*ufermiR1*conjg(A_R)*zexp(ui*phi)+0.5*ufermiR2*A_R*zexp(ui*phi))
-
-! Left electrode
-
-      g1p_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(0.5*fermiL1*A_L*zexp(ui*phi)+0.5*fermiL3*conjg(A_L)*zexp(ui*phi))
-      g1m_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(0.5*ufermiL1*conjg(A_L)*zexp(ui*phi)+0.5*ufermiL2*A_L*zexp(ui*phi))
-      g1p_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(0.5*fermiL1*A_L*zexp(ui*phi)+0.5*fermiL3*conjg(A_L)*zexp(ui*phi))
-      g1m_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(0.5*ufermiL1*conjg(A_L)*zexp(ui*phi)+0.5*ufermiL2*A_L*zexp(ui*phi))
-
-        do v=1,Ndim
-        do l=1,Ndim
-           
-           k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g0p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g0p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g0m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g0m_dn
-        k=k+1
-            enddo
-            
-! Right electrode
-            G (v,l,j,u,pn,1) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,1) = 0.5*(Lvluj - Ljulv)
-
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g1p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g1p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g1m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g1m_dn
-        k=k+1
-            enddo
-            
-! Left electrode
-            G (v,l,j,u,pn,2) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,2) = 0.5*(Lvluj - Ljulv)
-        enddo
-        enddo
-
-! FLOQUET n=+1
-            pn = 1 + NCF + 1
-
-! Right electrode
-
-      g0p_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(0.5*fermiR1*A_R*zexp(-ui*phi)+0.5*fermiR2*conjg(A_R)*zexp(-ui*phi))
-      g0m_up = gamma_R_0*(1+Spin_polarization_R)*0.5*(0.5*ufermiR1*conjg(A_R)*zexp(-ui*phi)+0.5*ufermiR3*A_R*zexp(-ui*phi))
-      g0p_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(0.5*fermiR1*A_R*zexp(-ui*phi)+0.5*fermiR2*conjg(A_R)*zexp(-ui*phi))
-      g0m_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*(0.5*ufermiR1*conjg(A_R)*zexp(-ui*phi)+0.5*ufermiR3*A_R*zexp(-ui*phi))
-
-! Left electrode
-
-      g1p_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(0.5*fermiL1*A_L*zexp(-ui*phi)+0.5*fermiL2*conjg(A_L)*zexp(-ui*phi))
-      g1m_up = gamma_L_0*(1+Spin_polarization_L)*0.5*(0.5*ufermiL1*conjg(A_L)*zexp(-ui*phi)+0.5*ufermiL3*A_L*zexp(-ui*phi))
-      g1p_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(0.5*fermiL1*A_L*zexp(-ui*phi)+0.5*fermiL2*conjg(A_L)*zexp(-ui*phi))
-      g1m_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*(0.5*ufermiL1*conjg(A_L)*zexp(-ui*phi)+0.5*ufermiL3*A_L*zexp(-ui*phi))
-
-        do v=1,Ndim
-        do l=1,Ndim
-        
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g0p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g0p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g0m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g0m_dn
-        k=k+1
-            enddo
-            
-! Right electrode
-            G (v,l,j,u,pn,1) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,1) = 0.5*(Lvluj - Ljulv)
-
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g1p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g1p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g1m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g1m_dn
-        k=k+1
-            enddo
-                    
-! Left electrode
-            G (v,l,j,u,pn,2) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,2) = 0.5*(Lvluj - Ljulv)
-            
-!         write(124,*) hartree*G (v,l,j,u,pn,1),hartree*G (v,l,j,u,pn,2),v,l,j,u,pn,A_L
-
-        enddo
-        enddo
-
-! FLOQUET n=-2
-            pn = -2 + NCF + 1
-
-! Right electrode
-
-
-! int((gau-1)/(1+gau))
-
-      g0p_up = gamma_R_0*(1+Spin_polarization_R)*0.5*seHa*0.25*fermiR3*(abs(A_R)*zexp(ui*phi))**2
-      g0m_up = gamma_R_0*(1+Spin_polarization_R)*0.5*seHa*0.25*ufermiR2*(abs(A_R)*zexp(ui*phi))**2
-      g0p_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*seHa*0.25*fermiR3*(abs(A_R)*zexp(ui*phi))**2
-      g0m_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*seHa*0.25*ufermiR2*(abs(A_R)*zexp(ui*phi))**2
-
-! Left electrode
-
-      g1p_up = gamma_L_0*(1+Spin_polarization_L)*0.5*seHa*0.25*fermiL3*(abs(A_L)*zexp(ui*phi))**2
-      g1m_up = gamma_L_0*(1+Spin_polarization_L)*0.5*seHa*0.25*ufermiL2*(abs(A_L)*zexp(ui*phi))**2
-      g1p_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*seHa*0.25*fermiL3*(abs(A_L)*zexp(ui*phi))**2
-      g1m_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*seHa*0.25*ufermiL2*(abs(A_L)*zexp(ui*phi))**2
-
-        do v=1,Ndim
-        do l=1,Ndim
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g0p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g0p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g0m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g0m_dn
-        k=k+1
-            enddo
-            
-! Right electrode
-            G (v,l,j,u,pn,1) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,1) = 0.5*(Lvluj - Ljulv)
-
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g1p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g1p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g1m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g1m_dn
-        k=k+1
-            enddo
-! Left electrode
-            G (v,l,j,u,pn,2) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,2) = 0.5*(Lvluj - Ljulv)
-            
-        enddo
-        enddo
-
-! FLOQUET n=+2
-            pn = 2 + NCF + 1
-
-! Right electrode
-
-      g0p_up = gamma_R_0*(1+Spin_polarization_R)*0.5*seHa*0.25*fermiR2*(abs(A_R)*zexp(-ui*phi))**2
-      g0m_up = gamma_R_0*(1+Spin_polarization_R)*0.5*seHa*0.25*ufermiR3*(abs(A_R)*zexp(-ui*phi))**2
-      g0p_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*seHa*0.25*fermiR2*(abs(A_R)*zexp(-ui*phi))**2
-      g0m_dn = gamma_R_0*(1-Spin_polarization_R)*0.5*seHa*0.25*ufermiR3*(abs(A_R)*zexp(-ui*phi))**2
-
-! Left electrode
-
-      g1p_up = gamma_L_0*(1+Spin_polarization_L)*0.5*seHa*0.25*fermiL2*(abs(A_L)*zexp(-ui*phi))**2
-      g1m_up = gamma_L_0*(1+Spin_polarization_L)*0.5*seHa*0.25*ufermiL3*(abs(A_L)*zexp(-ui*phi))**2
-      g1p_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*seHa*0.25*fermiL2*(abs(A_L)*zexp(-ui*phi))**2
-      g1m_dn = gamma_L_0*(1-Spin_polarization_L)*0.5*seHa*0.25*ufermiL3*(abs(A_L)*zexp(-ui*phi))**2
-
-        do v=1,Ndim
-        do l=1,Ndim
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g0p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g0p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g0m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g0m_dn
-        k=k+1
-            enddo
-            
-! Right electrode
-            G (v,l,j,u,pn,1) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,1) = 0.5*(Lvluj - Ljulv)
-
-            k=0
-            Lvluj=zero
-            Ljulv=zero
-            
-            do lorb=1,orb
-            
-        Lvluj = Lvluj + lambda (v,l,lorb+k)*conjg(lambda(u,j,lorb+k))*g1p_up+  &
-                lambda (v,l,lorb+1+k)*conjg(lambda(u,j,lorb+1+k))*g1p_dn
-                
-        Ljulv = Ljulv + lambda (j,u,lorb+k)*conjg(lambda(l,v,lorb+k))*g1m_up+  &
-                lambda (j,u,lorb+1+k)*conjg(lambda(l,v,lorb+1+k))*g1m_dn
-        k=k+1
-            enddo
-! Left electrode
-            G (v,l,j,u,pn,2) = 0.5*(Lvluj + Ljulv)
-            GC (v,l,j,u,pn,2) = 0.5*(Lvluj - Ljulv)
-        enddo
-        enddo
-    endif
-        
-      enddo
-     enddo
+          enddo fourier_component
+        enddo level_u
+        enddo level_j
 
       return
       
    end subroutine rates 
-!
-! Fermi occupation function
-!
-    function Fermi (e, T)
-      implicit none
-      real (q) :: Fermi, e, T
-         if ( e > 0._q ) then
-            Fermi = exp(-e/T)/(exp(-e/T)+1._q)
-         else
-           Fermi = 1._q/(exp(e/T)+1._q)
-         endif
-      return
-    end function Fermi
-!
-! Calculation of energy integration of rates involving the Fermi function
-! First type of integral
-!
-subroutine ExtendedFermiIntegral ( D, V, T, Cutoff, GammaC, N,fermiA,WW,gau)
-      implicit none
-      real (q) :: D, V, T, Cutoff,imG, GammaC
-      real (q) :: e, step_e, WW,gau
-      integer :: i, N
-      complex (qc):: fermiA
-!fermiA is Integral I11 of the Manual
-! Trapeze-integration (the best among the better)
-        imG=1._q
-      step_e = 2*Cutoff/(N-1)
-      e= -Cutoff+D
-      fermiA=(gau*dexp(-0.5*((e-D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*0.5*Fermi (e-V, T) &
-      &*(-ui*GammaC/((e-D)**2+GammaC**2)+(e-D)/((e-D)**2+imG*GammaC**2))
-        
-        ! factor (1./(WW*sqrt(2*pi_d))) made equal to 1
-        
-      do i = 2, N-1
-      e= -Cutoff +D + (i-1)*step_e
-      fermiA=fermiA+(gau*dexp(-0.5*((e-D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*Fermi (e-V, T) &
-      &*(-ui*GammaC/((e-D)**2+GammaC**2)+(e-D)/((e-D)**2+imG*GammaC**2))
-      enddo
-      e = Cutoff +D
-      fermiA=fermiA+(gau*dexp(-0.5*((e-D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*0.5*Fermi (e-V, T) &
-      &*(-ui*GammaC/((e-D)**2+GammaC**2)+(e-D)/((e-D)**2+imG*GammaC**2))
 
-      fermiA = step_e*ui*fermiA/pi_d
-!       print*,fermiA,'f'
-      return
-      end subroutine ExtendedFermiIntegral
 !
-! Calculation of energy integration of rates involving 1-Fermi function
+!       Fermi occupation function with limitors to avoid underflow/overflows
 !
-subroutine ExtendeduFermiIntegral (D,V,T,Cutoff,GammaC,N,ufermiA,WW,gau)
-      implicit none
-      real (q) :: D, V, T, Cutoff,imG, GammaC
-      real (q) :: e, step_e, WW,gau,Ef
-      integer :: i, N
-      complex (qc):: ufermiA
-!ufermiA is Integral I21 of the Manual
-! Trapeze-integration (the best among the better)
-! we add guassian
-        imG=1._q
-      step_e = 2*Cutoff/(N-1)
-      e= -Cutoff-D
-      ufermiA=(gau*dexp(-0.5*((e+D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*0.5*(1-Fermi (e-V, T)) &
-      &*(ui*GammaC/((e+D)**2+GammaC**2)+(e+D)/((e+D)**2+imG*GammaC**2))
+        function Fermi (e) result (eFermi)
+        implicit none
+        real (q), intent(out) :: eFermi
+        real (q), intent(in) :: e
+       
+        if (e < -1000._q) then
+                eFermi = 1._q
+        else
+#ifdef __UNDERANDOVER
+       eFermi = exp(e)
+  
+       ! Overflow errors possible here
+       if (eFermi > huge(0.0_q)) then
+         write(*,*) "Large Fermi value found for energy, temperature, value: ", e, eFermi
+       end if
+#endif
+          
+        end if
+        
+        if (eFermi > 1.0e30_q) then
+          eFermi = 0._q
+        else
+          eFermi = 1._q/(1._q + eFermi)
+        end if
+      end function Fermi
 
-      do i = 2, N-1
-      e= -Cutoff -D + (i-1)*step_e
-      ufermiA=ufermiA+(gau*dexp(-0.5*((e+D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*(1-Fermi (e-V, T))&
-      &*(ui*GammaC/ ((e+D)**2+GammaC**2)+(e+D)/((e+D)**2+imG*GammaC**2))
-      enddo
-      e = Cutoff -D
-      ufermiA=ufermiA+(gau*dexp(-0.5*((e+D)/WW)**2) &
-      &-int((gau-1)/(1+gau)))*0.5*(1-Fermi (e-V, T)) &
-      &*(ui*GammaC/((e+D)**2+GammaC**2)+(e+D)/((e+D)**2+imG*GammaC**2))
-! print*,int((gau-1)/(1+gau))
-      ufermiA = -step_e*ui*ufermiA/pi_d
-! print*,ufermiA,'1-f'
-      return
-      end subroutine ExtendeduFermiIntegral
+      
+        subroutine ExtendedFermiIntegral (D, frequency, V, p_max, T, Cutoff, GammaC,&
+                 N, WW, gau, fermiA, ufermiA)
+        implicit none
+        
+        integer, intent(in) :: N, p_max
+        real (q), intent(in) :: D, V, T, Cutoff, frequency, WW, gau
+        complex (qc), intent(in) :: GammaC
+        
+        complex (qc), intent(out), dimension(2*p_max+1) :: fermiA, ufermiA
+        
+        real (q) :: e, step_e, esq, gaushift, WWsq, imG, gausian
+        real (q) :: rGammaC, iGammaC, rGammaCsq, iGammaCsq
+        real (q), dimension(N) :: f, uf        
+        integer :: i, p, p_ind
+
+!       The FermiIntStep function is used to calculate the fermi integral
+!       G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
+!       A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
+!       uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
+!       fermi  += int f(e) * A(e) * G(e) de
+!       ufermi += int (1-f(e)) * uA(e) * G(e) de
+!       f(E,V) = \frac{1}{\exp(\beta (E-V)) + 1} Fermi distribution with V as fermi level
+
+!       TODO: think about how to organize this, probably should splie fermi and ufermi
+!       calculate all fermi contributions they are the same for all integrals
+        step_e = 2*Cutoff/(N-1)/T ! rescaling to units T = 1 
+        e= -(Cutoff - D + V)/T
+        fstep: do i = 1, N
+             e = e + step_e
+             f(i) = Fermi (e)
+        enddo fstep
+
+        e = -(Cutoff + D + V)/T
+        Ufstep: do i = 1, N
+             e = e + step_e
+             uf(i) = 1 - Fermi (e)
+        enddo ufstep
+   
+        step_e = 2*Cutoff/(N-1) ! now in atomic units
+        
+        imG = 1._q
+        gaushift =  int((gau-1)/(1+gau))
+        
+        rGammaC = dble (GammaC)
+        iGammaC = dimag(GammaC)
+        rGammaCsq = rGammaC**2
+        iGammaCsq = iGammaC**2
+        WWsq = WW**2
+
+        ploop: do p = -p_max, p_max
+             p_ind = p+p_max+1
+   
+             e = -Cutoff + p*frequency
+
+                fermiA(p_ind)  = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        -rGammaC, rGammaCsq, f(1))
+                ufermiA(p_ind) = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        iGammaC, iGammaCsq, uf(1))
+             
+                istep: do i = 2, N - 1
+                e = e + step_e
+                fermiA(p_ind)  = fermiA(p_ind)  + FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        -rGammaC, rGammaCsq, f(i))
+                ufermiA(p_ind) = ufermiA(p_ind) + FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        iGammaC, iGammaCsq, uf(i))
+                enddo istep
+             
+             e = Cutoff + p*frequency
+             fermiA(p_ind)  = fermiA(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        -rGammaC, rGammaCsq, f(N))
+             ufermiA(p_ind) = ufermiA(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+                        iGammaC, iGammaCsq, uf(N))
+   
+        enddo ploop
+        
+        fermiA  =  step_e*ui*fermiA/pi_d
+        ufermiA = -step_e*ui*ufermiA/pi_d
+
+        return
+        end subroutine ExtendedFermiIntegral
+
+
+        function FermiIntStep (e, WWsq, gaushift, gau, imG, GammaC, GammaCsq, f) result (fermiInt)
+        implicit none
+        real (q), intent(in) :: e, WWsq, gaushift, gau, imG, GammaC, GammaCsq, f
+        real (q) :: esq, gausian, A, fermi
+        complex (qc), intent(out) :: fermiInt
+                
+                esq = e**2
+                gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
+                A  = e/(esq + imG*GammaCsq) + ui*GammaC/(esq + GammaCsq)
+                fermiInt = f * A * gausian
+        return
+        end function FermiIntStep
+
+
+        function Bessel_K(z, Amplitude, p_max) result (K)
+        implicit none
+        real (q), intent (in) :: z
+        complex(qc), intent(in) :: Amplitude
+        integer, intent (in) :: p_max
+        complex (qc), dimension(2*p_max-1) :: K 
+        complex(qc), dimension(2*p_max+1) :: J
+        integer :: p
+   
+                J(p_max+1:) = Bessel_JN(0, p_max, z)
+             
+                ! J(-p) = (-1)**p J(p) for p = 0,1,2,...
+                negative_bessel : do p = 0, p_max -1
+                        J(p+1) = ((-1)**(p_max-p))*J(2*p_max+1-p)
+                enddo negative_bessel
+             
+                ! K(p) = J(p) + .5*A*(J(p-1)+ J(p+1))
+                K = J(2:2*p_max) + 0.5 * Amplitude * (J(1:2*p_max-1) + J(3:2+p_max+1))
+        
+        return
+        end function Bessel_K
+
+        subroutine Orbital_overlaps (lambda, j, u, g_up, g_dn, Ndim, overlapvluj, overlapjulv)
+        implicit none
+        integer, intent(in):: Ndim, j, u, orb
+        complex (qc), dimension(Ndim, Ndim, 2), intent (in) :: lambda 
+        complex (qc), intent (in) :: g_up, g_dn
+        complex (qc), dimension(Ndim, Ndim), intent (out) :: overlapvluj, overlapjulv
+        integer :: v, l, lorb 
+                
+                overlapvluj = zero
+                overlapjulv = zero
+                
+                level_v: do v=1,Ndim
+                level_l: do l=1, Ndim
+                        
+                        orbital: do lorb = 1, orb, 2 
+                        overlapvluj(v,l) = lambda(v,l,lorb)*conjg(lambda(u,j,lorb))*g_up+&
+                                lambda (v,l,lorb+1)*conjg(lambda(u,j,lorb+1))*g_dn
+                        overlapjulv(v,l) = lambda(j,u,lorb)*conjg(lambda(l,v,lorb))*g_up+&
+                                lambda (j,u,lorb+1)*conjg(lambda(l,v,lorb+1))*g_dn
+                        enddo orbital
+
+                enddo level_l
+                enddo level_v
+   
+        return
+        end subroutine Orbital_overlaps
+
+
+        subroutine compute_bessel_contribution(K, fermi, ufermi, p_max, n, result_bessel, result_ubessel)
+        integer, intent(in) :: p_max, n
+        complex (qc), intent(in), dimension(2*p_max-1) :: K
+        complex (qc), intent(in), dimension(2*p_max-1) :: fermi, ufermi
+        complex (qc), intent(out) :: result_bessel, result_ubessel
+   
+             integer :: p
+             result_bessel = 0.0_qc 
+             result_ubessel = 0.0_qc
+             
+             ! sum_p K*_{p-n} K_p  I(p)
+             ! sum_p K*_p K_{p+n}  uI(p)
+             ! assumes that for |p|>p_max K_p = 0 
+             ! for n<0 goes from p=1-p_max to p=p_max-1-n
+             ! for n>0 goes from p=1-p_max to p=p_max-1
+             ! thus p, p+n, p-n are all in the range 1-p_max to p_max-1
+             bessel: do p = max(1, 1-n), min(2*p_max-1, 2*p_max-n-1)
+                  result_bessel  = result_bessel  + conjg(K(p)) * K(p+n) * fermi(p+n)
+                  result_ubessel = result_ubessel + conjg(K(p)) * K(p+n) * ufermi(p)
+             enddo bessel
+             
+             return
+        end subroutine compute_bessel_contribution
 
 end module QME_F

@@ -109,11 +109,23 @@ write(*,*)'Off resonance Freq (GHz,meV):',omega/(2.*pi_d*time_unit),omega*hartre
 
 ! First evaluate rates in the H_QD basis and Floquet indices
 !      call clock ('STEP 3:: Computing rates ', 1)
-call rates (Ndim, NF, NCF, omega, gamma_R_0, A_R, gamma_L_0, A_L,phi,gammaC,&
-  &Temperature,Spin_polarization_R, Spin_polarization_L, G, GC,lambda,orb,seHa)
-! Second setup coefficient matrix of the QME
+  
+  !     right electrode
+  call rates (Ndim, orb, omega, gamma_R_0, lambda, Spin_polarization_R,&
+            NCF, p_max, A_R, phi, B_R, GammaC, bias_R, Delta, Cutoff, Temperature,& 
+            seHa, WW, gau, N_int, GA, GCA)
+  G(:,:,:,:,:,1)  = GA(:,:,:,:,:)
+  GC(:,:,:,:,:,1) = GCA(:,:,:,:,:)
+  
+  !     left electrode
+  call rates (Ndim, orb, omega, gamma_L_0, lambda, Spin_polarization_L,&
+    NCF, p_max, A_L, phi, B_L, GammaC, bias_L, Delta, Cutoff, Temperature,& 
+    seHa, WW, gau, N_int, GA, GCA)
+  G(:,:,:,:,:,2)  = GA(:,:,:,:,:)
+  GC(:,:,:,:,:,2) = GCA(:,:,:,:,:)
 
- call coeff_matrix (Ndim, omega, NF, NCF, G, Nmatrix, A, B, A_fast_left,A_fast_right, faster)
+
+            call coeff_matrix (Ndim, omega, NF, NCF, G, Nmatrix, A, B, A_fast_left,A_fast_right, faster)
 !     call clock ('STEP 3:: Finished computing rates ', 2)
     ! Solve the linear equations A*x=B
 ! using LAPACK zcgesv for square matrices
