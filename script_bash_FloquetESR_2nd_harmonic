@@ -1,0 +1,169 @@
+#!/bin/bash
+rm -rf *.dat *.fig *.png
+rm -rf POP
+rm -rf COH
+rm -rf CUR
+rm -rf RATES
+rm -rf EIGEN
+rm -rf SPIN
+mkdir EIGEN
+mkdir SPIN
+mkdir POP
+mkdir COH
+mkdir CUR
+mkdir RATES
+for i in `seq 775 5 1000`
+do
+gammaL=$(echo "0.0001" | bc -l)
+gammaR=$(echo "0.001" | bc -l)
+for B in `seq 2.1 -0.0005 -0.3`
+do
+angle=$(echo "10" | bc -l)
+pi=$(echo "3.141592653589793" | bc -l)
+x=$(echo "s(($angle)*($pi)/180)*($B)" | bc -l)
+y=$(echo "0." | bc -l)
+z=$(echo "c(($angle)*($pi)/180)*($B)" | bc -l)
+muL=$(echo "$i" | bc -l)
+muR=$(echo "0" | bc -l)
+if (( $(echo "$B == 2.1" | bc -l) )); then
+cat >Floquet.input <<@
+*****************************************************************
+************* Please keep this FORMAT ***************************
+*****************************************************************
+3 ! Maximum Floquet index, number of Floquets: NF = 2*NCF +1
+18.22 ! (GHz)  Initial driving frequency f
+18.22 ! (GHz)  Final driving frequency f
+1 ! number of points in frequency swept
+---------------electrode set-up-----------------------------------
+$gammaR ! in meV : gamma_R_0 = 2*pi*W_R_0*W_R_0*rho
+$gammaL ! in meV : gamma_L_0 = 2*pi*W_L_0*W_L_0*rho
+(0.,0.) !real and imag A_R = gamma_R_1/gamma_R_0
+(1.75,0.) ! real and imag A_L = gamma_L_1/gamma_L_0
+0 ! phase shift rad - azimuthal angle in the bloch sphere
+1 ! it multiplies the 2nd harmonic
+5000 ! Cutoff (meV) for integral in Lambshift
+45   ! Broadening of Green's function (meV)
+50000 ! Number of points in I11 and I21 (see Manual)
+500 ! Width of the gaussian of the PDOS (meV)
+0 ! >0 uses the gaussian PDOS with gau as max value, 0 a square PDOS
+1 ! set number of orbital, 1 will not use any Diego Lehman coeff
+.true.  ! feedbackon .true. moving tip to have Iset
+2 ! target current in pA if feedbackon is true
+0.001  ! tolerance in pA for reaching Iset
+10 ! ratio between gammas
+---------------bias, temperature, spin polarization---------------
+0 ! 0 EF closer to muR if gR>>gL, 1 EF to muL, 2 Ef at mu with gamma>>
+$muR  ! in mV right electrode bias
+$muL ! in mV left electrode bias
+4.5   ! Temperature in Kelvin
+0.   ! Spin polarization of electrode R, between -1 and 1
+0.8  ! Spin polarization of electrode L, between -1 and 1
+1    ! 0 is left and 1 is right electrode
+.true. !  .true. will compute the rates once (frequency small in rates)
+---------------output file names----------------------------------
+.true. ! .true. to write the populations
+.true. ! .true. to write the populations and coherences
+.true. ! .true. to write the spin components per site
+---------------READ previous RUNS: DANGEROUS----------------------------------
+.false. !if .true. reduce states to open plus a few closed channels
+4 !new dimension
+@
+else
+cat >Floquet.input <<@
+*****************************************************************
+************* Please keep this FORMAT ***************************
+*****************************************************************
+3 ! Maximum Floquet index, number of Floquets: NF = 2*NCF +1
+18.22 ! (GHz)  Initial driving frequency f
+18.22 ! (GHz)  Final driving frequency f
+1 ! number of points in frequency swept
+---------------electrode set-up-----------------------------------
+$gammaR ! in meV : gamma_R_0 = 2*pi*W_R_0*W_R_0*rho
+$gammaL ! in meV : gamma_L_0 = 2*pi*W_L_0*W_L_0*rho
+(0.,0.) !real and imag A_R = gamma_R_1/gamma_R_0
+(1.75,0.) ! real and imag A_L = gamma_L_1/gamma_L_0
+0 ! phase shift rad - azimuthal angle in the bloch sphere
+1 ! it multiplies the 2nd harmonic
+5000 ! Cutoff (meV) for integral in Lambshift
+45   ! Broadening of Green's function (meV)
+50000 ! Number of points in I11 and I21 (see Manual)
+500 ! Width of the gaussian of the PDOS (meV)
+0 ! >0 uses the gaussian PDOS with gau as max value, 0 a square PDOS
+1 ! set number of orbital, 1 will not use any Diego Lehman coeff
+.false.  ! feedbackon .true. moving tip to have Iset
+2 ! target current in pA if feedbackon is true
+0.001  ! tolerance in pA for reaching Iset
+10 ! ratio between gammas
+---------------bias, temperature, spin polarization---------------
+0 ! 0 EF closer to muR if gR>>gL, 1 EF to muL, 2 Ef at mu with gamma>>
+$muR  ! in mV right electrode bias
+$muL ! in mV left electrode bias
+4.5   ! Temperature in Kelvin
+0.   ! Spin polarization of electrode R, between -1 and 1
+0.8  ! Spin polarization of electrode L, between -1 and 1
+1    ! 0 is left and 1 is right electrode
+.true. !  .true. will compute the rates once (frequency small in rates)
+---------------output file names----------------------------------
+.true. ! .true. to write the populations
+.true. ! .true. to write the populations and coherences
+.true. ! .true. to write the spin components per site
+---------------READ previous RUNS: DANGEROUS----------------------------------
+.false. !if .true. reduce states to open plus a few closed channels
+4 !new dimension
+@
+fi
+cat >H_QD.input <<@@
+**********************************************************
+************* Please keep this FORMAT ********************
+**********************************************************
+1  !Number of spins (molecules or sites)
+---- Spin properties: as many blocs as Number of Spins ---
+0.5 ! First spin has to be 0.5 for Transport!
+0 0 0 0 ! Stephen Coefficients: B20 B22 B40 B44
+0 0 1 ! Axis for Stephen Operators
+$x $y $z ! Local magnetic field in Teslas
+2. 2. 2. ! Local gyromagnetic factors
+-----------  End of spin properties ----------------------
+0  !Number of exchange connected pairs
+-----------  End of exchange interactions ----------------
+-700. ! eps_QD  electronic level in meV
+1600  ! Hubbard U (meV)
+-----------  End of electronic interactions --------------
+Hamiltonian.output ! Name of the output file with H
+20 ! Number of states to print in Spin_distribution.dat
+**********************************************************
+************* END of INPUT FILE H_QD.input ***************
+**********************************************************
+@@
+time Floquet_ESR_v7.3.0.out
+if (( $(echo "$B == 2.1" | bc -l) )); then
+E=`tail -1 feedbackon_data.dat` ; echo $B $E >> feedbackon_data_B.dat
+E=`tail -1 Current_0.dat` ; echo $B $E >> Current_0_B.dat
+E=`tail -1 POPULATIONS_0.dat` ; echo $B $E >> POPULATIONS_0_B.dat
+E=`tail -1 COHERENCES_n1.dat` ; echo $B $E >> COHERENCES_n1_B.dat
+E=`tail -1 SpinFloquet_0.dat` ; echo $B $E >> SpinFloquet_0_B.dat
+E=`tail -1 SpinFloquet_1.dat` ; echo $B $E >> SpinFloquet_1_B.dat
+gammaL=$(awk '{print $5}' feedbackon_data_B.dat)
+cp rates_floquet0.dat rates_floquet0_$i.dat
+else
+E=`tail -1 Current_0.dat` ; echo $B $E >> Current_0_B.dat
+E=`tail -1 POPULATIONS_0.dat` ; echo $B $E >> POPULATIONS_0_B.dat
+E=`tail -1 COHERENCES_n1.dat` ; echo $B $E >> COHERENCES_n1_B.dat
+E=`tail -1 SpinFloquet_0.dat` ; echo $B $E >> SpinFloquet_0_B.dat
+E=`tail -1 SpinFloquet_1.dat` ; echo $B $E >> SpinFloquet_1_B.dat
+fi
+done
+cp feedbackon_data_B.dat feedbackon_data_B_$i.dat
+cp rates_floquet0.dat rates_floquet0_p_$i.dat
+cp POPULATIONS_0_B.dat POPULATIONS_0_B_$i.dat
+cp COHERENCES_n1_B.dat COHERENCES_n1_B_$i.dat
+cp Current_0_B.dat Current_0_B_$i.dat
+cp SpinFloquet_0_B.dat SpinFloquet_0_B_$i.dat
+cp SpinFloquet_1_B.dat SpinFloquet_1_B_$i.dat
+mv SpinF* SPIN
+mv POPU* POP
+mv COHE* COH
+mv Curr* CUR
+mv feedbackon_data* RATES
+mv rates_floquet0* RATES
+done
