@@ -153,8 +153,8 @@ endif
      complex (qc), intent (in), dimension(Ndim,Ndim,orb) :: lambda 
      real (q), intent (in), dimension(Ndim, Ndim) :: Delta
      real (q), intent (in) :: gamma_0, Temperature, omega, Spin_polarization
-     real (q), intent (in) :: A, Cutoff, WW, gau, phi, seHa, bias
-     complex (qc), intent (in) :: GammaC, B
+     real (q), intent (in) :: B, Cutoff, WW, gau, phi, seHa, bias
+     complex (qc), intent (in) :: A, GammaC
 
      complex (qc), intent (out), dimension(Ndim, Ndim, Ndim, Ndim, 2*NCF+1) :: GA, GCA 
 !       G_Alpha and GC_Alpha 
@@ -162,7 +162,7 @@ endif
      complex (q), dimension(2*p_max-1) :: K
      complex (qc) :: g_up, g_dn
      complex (qc), dimension(Ndim, Ndim) :: Lvluj, Ljulv
-     real(q), dimension(Ndim) :: bessel_contribution, ubessel_contribution
+     complex (q) :: bessel_contribution, ubessel_contribution
 
      integer :: j, u, n, n_index
 
@@ -192,7 +192,7 @@ endif
 !       Green's functions integrals involving occupation factors
         call ExtendedFermiIntegral(Delta(j,u), omega, bias, p_max, Temperature, Cutoff, &
                         GammaC, N_int, WW, gau, fermi, ufermi)
-        call Orbital_overlaps(lambda, j, u, g_up, g_dn, Ndim, Lvluj, Ljulv)
+        call Orbital_overlaps(lambda, j, u, g_up, g_dn, Ndim, orb, Lvluj, Ljulv)
         
         fourier_component: do n = -NCF, NCF
                n_index = n + NCF + 1
@@ -219,7 +219,7 @@ endif
 !
         function Fermi (e) result (eFermi)
         implicit none
-        real (q), intent(out) :: eFermi
+        real (q) :: eFermi
         real (q), intent(in) :: e
        
         if (e < -1000._q) then
@@ -259,7 +259,7 @@ endif
         real (q), dimension(N) :: f, uf        
         integer :: i, p, p_ind
 
-!       The FermiIntStep function is used to calculate the fermi integral
+!       The FermiIntegrand function is used to calculate the fermi integral
 !       G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
 !       A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
 !       uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
@@ -294,28 +294,30 @@ endif
         WWsq = WW**2
 
         ploop: do p = -p_max, p_max
-             p_ind = p+p_max+1
+                p_ind = p+p_max+1
    
-             e = -Cutoff + p*frequency
+                e = -Cutoff + p*frequency   
+                esq = e**2
 
-                fermiA(p_ind)  = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(1))
-                ufermiA(p_ind) = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(1))
+                gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
+                fermiA(p_ind)  = .5*FermiIntegrand(e, esq, gausian, imG, -rGammaC, rGammaCsq, f(1))
+                ufermiA(p_ind) = .5*FermiIntegrand(e, esq, gausian, imG, iGammaC, iGammaCsq, uf(1))
              
                 istep: do i = 2, N - 1
-                e = e + step_e
-                fermiA(p_ind)  = fermiA(p_ind)  + FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(i))
-                ufermiA(p_ind) = ufermiA(p_ind) + FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(i))
+                        e = e + step_e
+                        esq = e**2
+                
+                        gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
+                        fermiA(p_ind)  = fermiA(p_ind)  + FermiIntegrand(e, esq, gausian, imG, -rGammaC, rGammaCsq, f(i))
+                        ufermiA(p_ind) = ufermiA(p_ind) + FermiIntegrand(e, esq, gausian, imG, iGammaC, iGammaCsq, uf(i))
                 enddo istep
              
              e = Cutoff + p*frequency
-             fermiA(p_ind)  = fermiA(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(N))
-             ufermiA(p_ind) = ufermiA(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(N))
+             esq = e**2
+
+             gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
+             fermiA(p_ind)  = fermiA(p_ind)  + .5*FermiIntegrand(e, esq, gausian, imG, -rGammaC, rGammaCsq, f(p_ind))
+             ufermiA(p_ind) = ufermiA(p_ind) + .5*FermiIntegrand(e, esq, gausian, imG, iGammaC, iGammaCsq, uf(p_ind))
    
         enddo ploop
         
@@ -326,18 +328,16 @@ endif
         end subroutine ExtendedFermiIntegral
 
 
-        function FermiIntStep (e, WWsq, gaushift, gau, imG, GammaC, GammaCsq, f) result (fermiInt)
+        function FermiIntegrand (e, esq, gausian, imG, GammaC, GammaCsq, f) result (fermiInt)
         implicit none
-        real (q), intent(in) :: e, WWsq, gaushift, gau, imG, GammaC, GammaCsq, f
+        real (q), intent(in) :: e, imG, GammaC, GammaCsq, f
         real (q) :: esq, gausian, A, fermi
-        complex (qc), intent(out) :: fermiInt
+        complex (qc) :: fermiInt
                 
-                esq = e**2
-                gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
                 A  = e/(esq + imG*GammaCsq) + ui*GammaC/(esq + GammaCsq)
                 fermiInt = f * A * gausian
         return
-        end function FermiIntStep
+        end function FermiIntegrand
 
 
         function Bessel_K(z, Amplitude, p_max) result (K)
@@ -362,7 +362,7 @@ endif
         return
         end function Bessel_K
 
-        subroutine Orbital_overlaps (lambda, j, u, g_up, g_dn, Ndim, overlapvluj, overlapjulv)
+        subroutine Orbital_overlaps (lambda, j, u, g_up, g_dn, Ndim, orb, overlapvluj, overlapjulv)
         implicit none
         integer, intent(in):: Ndim, j, u, orb
         complex (qc), dimension(Ndim, Ndim, 2), intent (in) :: lambda 
