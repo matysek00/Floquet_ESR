@@ -34,7 +34,7 @@ implicit none
        NF,NCF,GammaC,Cutoff,WW,gau,redimension,Nd,Freq_ini,Freq_fin,step_freq,N_freq,&
        bias_R, bias_L, Spin_polarization_R, Spin_polarization_L, Temperature, &
        Electrode, write_populations, write_coherences, spinflo,Ef,FermiP,seHa,&
-       feedbackon,Iset,tol,VDC,ratio)
+       feedbackon,Iset,tol,VDC,ratio, B_L, B_R, p_max)
 
 !      call clock ('Finished reading INPUT for the QME ', 2)
 
