@@ -5,13 +5,13 @@ CONTAINS
    subroutine reading_input ( gamma_R_0, A_R, gamma_L_0, A_L,phi,orb, &
        NF,NCF,GammaC,Cutoff,WW,gau,redimension,Nd,Freq_ini,Freq_fin,step_freq,N_freq,&
        bias_R, bias_L, Spin_polarization_R, Spin_polarization_L, Temperature, &
-       Electrode,write_populations,write_coherences, spinflo,Ef,FermiP,seHa,&
+       Electrode,B_R, B_L, p_max, write_populations,write_coherences, spinflo,Ef,FermiP,seHa,&
        feedbackon,Iset,tol,VDC,ratio)
    implicit none
-   integer :: Ninterval, Nfreq, Ntime, n, i, Electrode, N_freq, FermiP
+   integer :: Ninterval, Nfreq, Ntime, n, i, Electrode, N_freq, FermiP, p_max
    real (q) :: Spin_polarization_R, Spin_polarization_L, Temperature
    real (q) :: gamma_R_0,gamma_L_0,phi,Cutoff,seHa,tol,ratio
-   real (q) :: bias_R, bias_L, Freq_ini, step_freq, Freq_fin,WW,gau
+   real (q) :: bias_R, bias_L, Freq_ini, step_freq, Freq_fin,WW,gau, B_L, B_R
    real(q), intent(out) :: Ef,Iset,VDC
    logical :: write_populations, write_coherences, redimension,presence2,spinflo,feedbackon
    integer :: Nd,NF,NCF,orb
@@ -53,6 +53,10 @@ CONTAINS
        read (unit_input, *) Spin_polarization_L !  between -1 and 1
        read (unit_input, *) Electrode !  0 is left and 1 is right
        read (unit_input, *) faster !  .true. will compute the rates once (frequency small in rates)
+       read (unit_input, *)  ! separator
+       read (unit_input, *) B_R 
+       read (unit_input, *) B_L
+       read (unit_input, *) p_max
        read (unit_input, *)  ! separator
        read (unit_input, *) write_populations ! .true. will write the populations only
        read (unit_input, *) write_coherences ! .true. will write the full density matrix

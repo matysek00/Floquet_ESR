@@ -26,16 +26,21 @@ module declarations
 
 ! numbers
   integer :: NF, INFO, ITER, LDA, LDB, LDX, Nmatrix, NRHS
-  integer :: Nd, i_m, Nplot, Ndim, N_freq, N_int, Ndim_old
-  integer :: i,ii, N, Nm, Np, i_, j, j1, j2, l, i_omega,k,FermiP
-  integer :: j3, j4, i1, i2, i3, i4, u, v, i_sigma, i2p
+  integer :: Nd, i_m, Nplot, Ndim, N_freq, N_int, Ndim_old, p_max
+  integer :: i,ii, N, Nm, Np, i_, j, j1, j2, l, i_omega, k, FermiP, p, p_ind
+  integer :: j3, j4, i1, i2, i3, i4, u, v, i_sigma, i2p, n_index, nfour
   integer :: Electrode, NCF,orb,i_feed
   real (q) :: eps_QD, U_Hubbard, p_mod, Freq_ini, step_freq,phi,Ef,sum_rule
-  real (q) :: px, py, pz, pxx, pyy, pzz, suma, omega, WW,gau,Iset,tol
-  real (q) :: bias_R, bias_L, Spin_polarization_R, Spin_polarization_L,seHa
-  real (q) :: Temperature, gamma_R_0, gamma_R_1, gamma_L_0, gamma_L_1, Cutoff
-  real (q) :: VDC,Freq_fin,ratio
-  complex (qc) :: A_L,A_R, spin2_ave, gammaC
+  real (q) :: px, py, pz, pxx, pyy, pzz, suma, omega, WW, gau, Iset, tol
+  real (q) :: bias_R, bias_L, bias, Spin_polarization_R, Spin_polarization_L, Spin_polarization, seHa
+  real (q) :: Temperature, gamma_R_0, gamma_R_1, gamma_L_0, gamma_L_1, Cutoff, gamma_0
+  real (q) :: VDC, Freq_fin, ratio, Bdrive, B_L, B_R 
+  complex (qc) :: A_L, A_R, spin2_ave, GammaC, Adrive
+  complex (qc) :: g_dn, g_up, bessel_contribution, ubessel_contribution
+  real (q) :: e, eFermi, step_e, esq, gaushift, WWsq, gausian, f, uf
+  real (q) :: imG, rGammaC, iGammaC, rGammaCsq, iGammaCsq
+  real (q) :: D
+
 ! arrays
   integer, allocatable :: IPIV (:)
   integer, allocatable :: mol1(:), mol2(:), N_in (:), N_block (:)
@@ -59,11 +64,12 @@ module declarations
   complex (qc), allocatable :: spinX (:,:,:), spinY(:,:,:), spinZ(:,:,:)
   complex (qc), allocatable :: Sx_u (:,:,:), Sy_u (:,:,:), Sz_u (:,:,:)
   complex (qc), allocatable :: spin2_T(:,:), spin2(:,:,:)
-  complex (qc), allocatable :: lambda (:,:,:)
-  complex (qc), allocatable :: G (:,:,:,:,:,:), GC (:,:,:,:,:,:)
+  complex (qc), allocatable :: lambda (:,:,:), Lvluj(:,:), Ljulv(:,:)
+  complex (qc), allocatable :: G (:,:,:,:,:,:), GC (:,:,:,:,:,:), GA (:,:,:,:,:), GCA (:,:,:,:,:)
   complex (qc), allocatable :: rho (:,:)
-  complex (qc), allocatable:: fermiR_a(:,:), fermiL_a(:,:)
-  complex (qc), allocatable:: ufermiR_a(:,:), ufermiL_a(:,:)
+  complex (qc), allocatable :: fermiR_a(:,:), fermiL_a(:,:), fermi(:)
+  complex (qc), allocatable :: ufermiR_a(:,:), ufermiL_a(:,:), ufermi(:)
+  complex (qc), allocatable :: Kbess(:), Jbess(:)
 
 ! logical
   logical :: presence,runs,redimension,faster,presence2

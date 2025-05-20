@@ -33,7 +33,7 @@ implicit none
      call reading_input ( gamma_R_0, A_R, gamma_L_0, A_L, phi, orb,&
        NF,NCF,GammaC,Cutoff,WW,gau,redimension,Nd,Freq_ini,Freq_fin,step_freq,N_freq,&
        bias_R, bias_L, Spin_polarization_R, Spin_polarization_L, Temperature, &
-       Electrode, write_populations, write_coherences, spinflo,Ef,FermiP,seHa,&
+       Electrode, B_R, B_L, p_max, write_populations, write_coherences, spinflo,Ef,FermiP,seHa,&
        feedbackon,Iset,tol,VDC,ratio)
 
 !      call clock ('Finished reading INPUT for the QME ', 2)
@@ -56,6 +56,7 @@ implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      allocate (G (Ndim, Ndim, Ndim, Ndim, NF, 2))
      allocate (GC (Ndim, Ndim, Ndim, Ndim, NF, 2))
+     allocate (GA (Ndim, Ndim, Ndim, Ndim, NF), GCA (Ndim, Ndim, Ndim, Ndim, NF))
      allocate (A (Nmatrix, Nmatrix),A_old(Nmatrix,Nmatrix))
      allocate (B (Nmatrix),A_fast_left (Nmatrix, Nmatrix))
      allocate (X (Nmatrix),XX(Nmatrix),A_fast_right(Nmatrix, Nmatrix))
@@ -117,6 +118,19 @@ write(*,*)'Off resonance Freq (GHz,meV):',omega/(2.*pi_d*time_unit),omega*hartre
   G(:,:,:,:,:,1)  = GA(:,:,:,:,:)
   GC(:,:,:,:,:,1) = GCA(:,:,:,:,:)
   
+  do u = 1, Ndim
+  do j = 1, Ndim
+  do v = 1, Ndim
+  do l = 1, Ndim
+    if (G(v,l,j,u,3,1).ne.zero) then        
+      print *, 'v, l, j, u'
+      print *, v, l, j, u
+      print *, 'G', G(v,l,j,u,3,1)
+    end if
+  enddo 
+  enddo
+  enddo
+  enddo
   !     left electrode
   call rates (Ndim, orb, omega, gamma_L_0, lambda, Spin_polarization_L,&
     NCF, p_max, A_L, phi, B_L, GammaC, bias_L, Delta, Cutoff, Temperature,& 
@@ -266,8 +280,24 @@ do i_omega = 1, N_freq
 
   ! First evaluate rates in the H_QD basis and Floquet indices
   !      call clock ('STEP 3:: Computing rates ', 1)
-      call rates (Ndim, NF, NCF, omega, gamma_R_0, A_R, gamma_L_0, A_L,phi,gammaC,&
-      &Temperature,Spin_polarization_R, Spin_polarization_L, G, GC,lambda,orb,seHa)
+  ! First evaluate rates in the H_QD basis and Floquet indices
+!      call clock ('STEP 3:: Computing rates ', 1)
+  
+  !     right electrode
+    call rates (Ndim, orb, omega, gamma_R_0, lambda, Spin_polarization_R,&
+      NCF, p_max, A_R, phi, B_R, GammaC, bias_R, Delta, Cutoff, Temperature,& 
+      seHa, WW, gau, N_int, GA, GCA)
+    G(:,:,:,:,:,1)  = GA(:,:,:,:,:)
+    GC(:,:,:,:,:,1) = GCA(:,:,:,:,:)
+
+    !     left electrode
+    call rates (Ndim, orb, omega, gamma_L_0, lambda, Spin_polarization_L,&
+      NCF, p_max, A_L, phi, B_L, GammaC, bias_L, Delta, Cutoff, Temperature,& 
+      seHa, WW, gau, N_int, GA, GCA)
+    G(:,:,:,:,:,2)  = GA(:,:,:,:,:)
+    GC(:,:,:,:,:,2) = GCA(:,:,:,:,:)
+    !call rates (Ndim, NF, NCF, omega, gamma_R_0, A_R, gamma_L_0, A_L,phi,GammaC,&
+    !  &Temperature,Spin_polarization_R, Spin_polarization_L, G, GC,lambda,orb,seHa)
   ! Second setup coefficient matrix of the QME
 
   call coeff_matrix (Ndim, omega, NF, NCF, G, Nmatrix, A, B, A_fast_left,A_fast_right, faster)
