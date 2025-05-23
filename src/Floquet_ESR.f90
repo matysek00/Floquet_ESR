@@ -60,8 +60,8 @@ implicit none
      allocate (GA (Ndim, Ndim, Ndim, Ndim, NF), GCA (Ndim, Ndim, Ndim, Ndim, NF))
      allocate (A (Nmatrix, Nmatrix),A_old(Nmatrix,Nmatrix))
      allocate (B (Nmatrix))
-     allocate (Rho (Nmatrix),XX(Nmatrix))
-     allocate (rho(Ndim,Ndim))
+     allocate (Rho (Ndim, Ndim, NF))
+     allocate (rho2(Ndim,Ndim))
      allocate (WORK (Nmatrix))
      allocate (RWORK (Nmatrix))
      allocate (SWORK (Nmatrix*(Nmatrix+1)))
@@ -126,7 +126,7 @@ implicit none
   enddo
 
 ! Compute the DC electron current
-     call Current (Ndim, NF, NCF, Rho, XX, GC, curr, Electrode)
+     call Current (Ndim, NF, NCF, Rho, GC(:,:,:,:,1+Electrode), curr)
 
 if (feedbackon) then
   print *, 'Feedback not implemented. Sorry :('
@@ -181,48 +181,33 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
 
            do l=1,Ndim
             i = 1 + ndim*ndim*(NCF) + (l-1)*(Ndim+1)
-              rho (l,l) = Rho(i)
               sum_rule  = 0
               do i = 1, Ndim
-                sum_rule  = sum_rule  + dble (rho(i,i))
+                sum_rule  = sum_rule  + dble (rho2(i,i))
               enddo
 
-              if((dble(rho(l,l))<-1.E-8).or.(dble(rho(l,l))>1.000001_q).or.(dabs(dimag(rho(l,l)))>1E-6)&
+              if((dble(rho2(l,l))<-1.E-8).or.(dble(rho2(l,l))>1.000001_q).or.(dabs(dimag(rho2(l,l)))>1E-6)&
               &.or.(sum_rule>1.000001_q))then
-                write(unit_error,*) rho(l,l),l,sum_rule,Ndim,bias_R*hartree,bias_L*hartree,frequency/(2*pi_d*time_unit)
+                write(unit_error,*) rho2(l,l),l,sum_rule,Ndim,bias_R*hartree,bias_L*hartree,frequency/(2*pi_d*time_unit)
                 write(*,*) 'WEIRD RESULTS! -> CHECK strange_populations.dat but we continue...'
 !                 stop
               end if
            enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(rho (l,l)), l= 1, Ndim)
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,NCF)), l= 1, Ndim)
             k=k+1
 
 
 ! Floquet n = 1
-           do l=1,Ndim
-            i = 1 + ndim*ndim*(NCF+1) + (l-1)*(Ndim+1)
-              rho (l,l) = Rho(i)
-           enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(rho (l,l)), l= 1, Ndim)
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,NCF+1)), l= 1, Ndim)
             k=k+1
 ! Floquet n = -1
-           do l=1,Ndim
-            i = 1 + ndim*ndim*(NCF-1) + (l-1)*(Ndim+1)
-              rho (l,l) = Rho(i)
-           enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(rho (l,l)), l= 1, Ndim)
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,NCF-1)), l= 1, Ndim)
             k=k+1
 
       if (write_coherences) then
         i1=1
         ! Floquet n = 0
-          do i=1+ndim*ndim*(NCF),ndim*ndim*(NCF+1)
-            l=1+(i1-1)/ndim
-            j=i1-(l-1)*ndim
-            i1=i1+1
-              rho (l,j) = Rho(i)
-           enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(Rho (:,:, NCF)),dimag(Rho (:,:,NCF))
               ! the order is alter by the way fortran print this array so we have for Ndim=4
               ! t Re 11 Re 21 Re 31 Re 41 Re 12 Re 22 Re 32  Re 42 ...
               ! Im 11 Im 21 Im 31 Im 41 Im 12 Im 22 Im 32 Im 42 ...
@@ -234,9 +219,9 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = Rho(i)
+              rho2 (l,j) = Rho(i)
            enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho2 (:,:)),dimag(rho2 (:,:))
             k=k+1
         i1=1
         ! Floquet n = -1
@@ -244,9 +229,9 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = Rho(i)
+              rho2 (l,j) = Rho(i)
            enddo
-              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
+              write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho2 (:,:)),dimag(rho2 (:,:))
             k=k+1
       endif
 
@@ -260,10 +245,10 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = Rho(i)
+              rho2 (l,j) = Rho(i)
            enddo
 
-    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
+    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho2, hx, hy, hz,&
     &Sx,Sy,Sz,Sh,spin2_ave)
 
             write (unit_output+k,*) frequency/(2*pi_d*time_unit),&
@@ -276,9 +261,9 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = Rho(i)
+              rho2 (l,j) = Rho(i)
            enddo
-    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
+    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho2, hx, hy, hz,&
     &Sx,Sy,Sz,Sh,spin2_ave)
 
             write (unit_output+k,*) frequency/(2*pi_d*time_unit),&
@@ -291,9 +276,9 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = Rho(i)
+              rho2 (l,j) = Rho(i)
            enddo
-    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
+    call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho2, hx, hy, hz,&
     &Sx,Sy,Sz,Sh,spin2_ave)
 
             write (unit_output+k,*) frequency/(2*pi_d*time_unit),&
