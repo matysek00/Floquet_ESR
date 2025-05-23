@@ -2,7 +2,7 @@ module Matrix_Coeff
     Use declarations
     CONTAINS
 
-subroutine coeff_matrix2 (Ndim, NF, NCF, GA, QME_Tensor_A)
+subroutine coef_matrix_transport (Ndim, NF, NCF, GA, QME_Tensor_A)
     implicit none
     integer, intent (in) :: Ndim, NF, NCF
     complex (qc), intent (in) :: GA (Ndim, Ndim, Ndim, Ndim, NF)
@@ -38,65 +38,93 @@ subroutine coeff_matrix2 (Ndim, NF, NCF, GA, QME_Tensor_A)
     enddo level_l
     enddo fourier_m
     enddo fourier_n
+    
     return 
-end subroutine coeff_matrix2
+end subroutine coef_matrix_transport
 
 
-subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, A, B)
+subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
     implicit none
     integer,intent (in) :: Ndim, NF, NCF
     integer,intent (in) :: Nmatrix
     real (q), intent(in) :: frequency
     complex (qc), intent (in) :: G (Ndim, Ndim, Ndim, Ndim, NF, 2)
-    complex (qc), intent (inout) :: A (Nmatrix, Nmatrix)
-    complex (qc), intent (out) :: B (Nmatrix)
+    complex (qc), intent (out) :: Rho (Ndim, Ndim, NF)
     
     complex (qc), allocatable :: QME_Tensor_R (:,:,:,:,:,:), QME_Tensor_L (:,:,:,:,:,:)
-    complex (qc), allocatable :: QME_Tensor(:,:,:,:,:,:), QME_Tensor_D(:,:,:,:,:,:)
+    complex (qc), allocatable :: QME_Tensor(:,:,:,:,:,:), A (:,:), B(:)
 
     integer :: l, j, n, i2
 
-!       Return A that solves rho_{l,j,n} A_{l,j,n u,v,m}  = delta(v,1) * delta(u,1) * delta (n,0)
-!       B is the right hand side of the equation 
+!   Solve The Quantum Master Equation writen as
+!       rho_{l,j,n} A_{l,j,n u,v,m}  = delta(v,1) * delta(u,1) * delta (n,0)
 !       B = delta(v,1) * delta(u,1) * delta (n,0)
+!       B is the right hand side of the equation 
 
     allocate (QME_Tensor (Ndim, Ndim, NF, Ndim, Ndim, NF))
-    allocate (QME_Tensor_D (Ndim, Ndim, NF, Ndim, Ndim, NF))
-    !allocate (QME_Tensor (NF, Ndim, Ndim, NF, Ndim, Ndim))
-    !allocate (QME_Tensor_D (NF, Ndim, Ndim, NF, Ndim, Ndim))
-!       In dot zeroth-order dynamics 
-
-    QME_Tensor_D = zero
+    allocate (A(Nmatrix, Nmatrix), B(Nmatrix))
+    
+!   In dot zeroth-order dynamics 
     QME_Tensor = zero
     do n=1,NF
     do l = 1, Ndim
     do j = 1, Ndim
-            QME_Tensor_D (j,l,n, j,l,n) = Delta (l,j) + frequency*(n-NCF-1)
+            QME_Tensor (j,l,n, j,l,n) = Delta (l,j) + frequency*(n-NCF-1)
     enddo
     enddo
     enddo
 
-!       Right and left electrode hopping
-    call coeff_matrix2 (Ndim, NF, NCF, G(:,:,:,:,:,1), QME_Tensor_R) 
-    call coeff_matrix2 (Ndim, NF, NCF, G(:,:,:,:,:,2), QME_Tensor_L) 
-    
-    QME_Tensor = QME_Tensor_D + QME_Tensor_L + QME_Tensor_R      
+!   Right and left electrode hopping
+    call coef_matrix_transport (Ndim, NF, NCF, G(:,:,:,:,:,1), QME_Tensor_R) 
+    call coef_matrix_transport (Ndim, NF, NCF, G(:,:,:,:,:,2), QME_Tensor_L) 
+    print *, 2 
+    QME_Tensor = QME_Tensor + QME_Tensor_L + QME_Tensor_R      
 
-!       I don't understand why we do this
+!   I don't understand why we do this
     do n=1,NF
-            QME_Tensor(1,1,n, :,:,:) = zero
-    do l = 1, Ndim
+        QME_Tensor(1,1,n, :,:,:) = zero
+        do l = 1, Ndim
             QME_Tensor(1,1,n, l,l,n) = one
-    enddo  
+        enddo  
     enddo
     
     A = reshape(QME_Tensor, (/Nmatrix, Nmatrix/))
     i2 = 0
     
-!       B definition entails detailed balance
+    !open (unit_rates, file='lala.dat')
+    !do i=1,Nmatrix
+    !do j=1,Nmatrix
+    !if (A(i,j).ne.zero) then
+    !    write (unit_rates,*) i,j, dble(A(i,j)), imag(A(i,j))
+    !endif     
+    !enddo
+    !enddo
+    !close(unit_rates)
+    
+!   X definition entails detailed balance
     B = zero
     B (1+ndim*ndim*(NCF)) = one
     
+!   Solve the equations A*X = B. X retuned in B 
+!   A  is n x m matrix
+!   B, X are  l x k matrix
+!   zgsev (n, l, A, m, IPIV, B, l, INFO)
+    call zgesv(Nmatrix, 1, A, Nmatrix, IPIV, B, Nmatrix, INFO)
+    
+    if (INFO > 0) then
+        print *, 'The linear problem is singular and cannot be solved, check input: dimension and bias. INFO=', INFO
+!       i, U(i,i) computed in DOUBLE PRECISION is
+!       exactly zero.  The factorization has been completed,
+!       but the factor U is exactly singular, so the solution
+!       could not be computed.
+    else if (INFO < 0) then
+        print *, 'if INFO = -i, the i-th argument had an illegal value. INFO=', INFO
+    endif
+
+    Rho = reshape(B, (/Ndim, Ndim, NF/))
+    
+    deallocate (QME_Tensor_R, QME_Tensor_L)
+    deallocate (QME_Tensor, A, B)
     return
 end subroutine coeff_matrix 
 end module Matrix_Coeff

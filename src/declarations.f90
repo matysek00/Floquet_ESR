@@ -56,7 +56,7 @@ module declarations
   complex (qc), allocatable :: A_fast_left(:,:), A_fast_right(:,:)
   complex (qc), allocatable :: Ss(:,:,:,:), Sn (:,:,:), H_el(:,:)
   complex (qc), allocatable :: H (:,:), SprodS (:,:,:), SprodS2 (:,:,:)
-  complex (qc), allocatable :: Identity (:,:), A (:,:), B (:), X (:), XX(:)
+  complex (qc), allocatable :: Identity (:,:), A (:,:), B (:), Rho (:), XX(:)
   complex (qc), allocatable :: Sp (:,:), Sm (:,:)
   complex (qc), allocatable :: Sp2 (:,:), Sm2 (:,:)
   complex (qc), allocatable :: Sp4 (:,:), Sm4 (:,:)

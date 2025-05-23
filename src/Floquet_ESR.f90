@@ -60,7 +60,7 @@ implicit none
      allocate (GA (Ndim, Ndim, Ndim, Ndim, NF), GCA (Ndim, Ndim, Ndim, Ndim, NF))
      allocate (A (Nmatrix, Nmatrix),A_old(Nmatrix,Nmatrix))
      allocate (B (Nmatrix))
-     allocate (X (Nmatrix),XX(Nmatrix))
+     allocate (Rho (Nmatrix),XX(Nmatrix))
      allocate (rho(Ndim,Ndim))
      allocate (WORK (Nmatrix))
      allocate (RWORK (Nmatrix))
@@ -93,11 +93,7 @@ implicit none
         k=k+1
         open (unit_output+k, file='SpinFloquet_n1.dat')
 
-
 ! add more floquet numbers (\pm 2) if the driving is large enough to make them important
-
-A=zero
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                    Solve QME in Floquet basis                          !
@@ -122,49 +118,15 @@ A=zero
   G(:,:,:,:,:,2)  = GA(:,:,:,:,:)
   GC(:,:,:,:,:,2) = GCA(:,:,:,:,:)
   
-  call coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, A, B)
+  call coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
   
-  open (unit_rates, file='lala.dat')
-  do i=1,Nmatrix
-  do j=1,Nmatrix
-  if (A(i,j).ne.zero) then
-          write (unit_rates,*) i,j, dble(A(i,j)), imag(A(i,j))
-  endif     
-  enddo
-  enddo
-  close(unit_rates)
-!     call clock ('STEP 3:: Finished computing rates ', 2)
-    ! Solve the linear equations A*x=B
-! using LAPACK zcgesv for square matrices
-
-!      call clock ('STEP 4:: Solving linear system of QME ', 1)
-     NRHS = 1 !one column for B
-!
-
-!       Solve the equations A*X = B. X retuned in B 
-!       A  is n x m matrix
-!       B, X are  l x k matrix
-!       zgsev (n, l, A, m, IPIV, B, l, INFO)
-    call zgesv(Nmatrix,1,A,Nmatrix,IPIV,B,Nmatrix,INFO)
-    ! better solver and similar performance
-    X = B
-    XX=zero
+  XX=zero
     do i=1,NF
-        XX(1+ndim*ndim*(NF-i):ndim*ndim*(NF+1-i))=X(1+ndim*ndim*(i-1):ndim*ndim*i)
-    enddo
-
-           if (INFO > 0) then
-               print *, 'The linear problem is singular and cannot be solved, check input: dimension and bias. INFO=', INFO
-!                i, U(i,i) computed in DOUBLE PRECISION is
-!                 exactly zero.  The factorization has been completed,
-!                 but the factor U is exactly singular, so the solution
-!                 could not be computed.
-           else if (INFO < 0) then
-               print *, 'if INFO = -i, the i-th argument had an illegal value. INFO=', INFO
-           endif
+        XX(1+ndim*ndim*(NF-i):ndim*ndim*(NF+1-i))=Rho(1+ndim*ndim*(i-1):ndim*ndim*i)
+  enddo
 
 ! Compute the DC electron current
-     call Current (Ndim, NF, NCF, X, XX, GC, curr, Electrode)
+     call Current (Ndim, NF, NCF, Rho, XX, GC, curr, Electrode)
 
 if (feedbackon) then
   print *, 'Feedback not implemented. Sorry :('
@@ -175,7 +137,7 @@ endif
 !  print*,'Initial values for the current and couplings',curr(NCF+1)*pA, gamma_L_0*hartree,gamma_R_0*hartree
 !  print*,''
 !  call feedback(Spin_polarization_L,Spin_polarization_R,gamma_L_0,gamma_R_0,&
-!   &curr,Iset,tol,bias_L,bias_R,feedbackon,GC,G,A_fast_left,A_fast_right,X,XX,ratio)
+!   &curr,Iset,tol,bias_L,bias_R,feedbackon,GC,G,A_fast_left,A_fast_right,Rho,XX,ratio)
 !   close(unit_feedbackon)
 !    call clock ('Feedback on loop ended. New rates computed', 2)
 !else
@@ -219,7 +181,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
 
            do l=1,Ndim
             i = 1 + ndim*ndim*(NCF) + (l-1)*(Ndim+1)
-              rho (l,l) = X(i)
+              rho (l,l) = Rho(i)
               sum_rule  = 0
               do i = 1, Ndim
                 sum_rule  = sum_rule  + dble (rho(i,i))
@@ -239,14 +201,14 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
 ! Floquet n = 1
            do l=1,Ndim
             i = 1 + ndim*ndim*(NCF+1) + (l-1)*(Ndim+1)
-              rho (l,l) = X(i)
+              rho (l,l) = Rho(i)
            enddo
               write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(rho (l,l)), l= 1, Ndim)
             k=k+1
 ! Floquet n = -1
            do l=1,Ndim
             i = 1 + ndim*ndim*(NCF-1) + (l-1)*(Ndim+1)
-              rho (l,l) = X(i)
+              rho (l,l) = Rho(i)
            enddo
               write (unit_output+k,*) frequency/(2*pi_d*time_unit), (dble(rho (l,l)), l= 1, Ndim)
             k=k+1
@@ -258,7 +220,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
               write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
               ! the order is alter by the way fortran print this array so we have for Ndim=4
@@ -272,7 +234,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
               write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
             k=k+1
@@ -282,7 +244,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
               write (unit_output+k,*) frequency/(2*pi_d*time_unit),dble(rho (:,:)),dimag(rho (:,:))
             k=k+1
@@ -298,7 +260,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
 
     call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
@@ -314,7 +276,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
     call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
     &Sx,Sy,Sz,Sh,spin2_ave)
@@ -329,7 +291,7 @@ write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA
             l=1+(i1-1)/ndim
             j=i1-(l-1)*ndim
             i1=i1+1
-              rho (l,j) = X(i)
+              rho (l,j) = Rho(i)
            enddo
     call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, rho, hx, hy, hz,&
     &Sx,Sy,Sz,Sh,spin2_ave)
