@@ -2,149 +2,9 @@ module QME_F
 Use declarations
 CONTAINS
 !
-! The Matrix
-!
-      subroutine coeff_matrix (Ndim, omega, NF, NCF, G, Nmatrix, A, B, A_fast_left,A_fast_right, faster)
-      implicit none
-      integer,intent (in) :: Ndim, NF, NCF
-      integer,intent (in) :: Nmatrix
-      integer :: i1, i2, l, j, m, n, u, v, p
-      complex (qc), intent (in) :: G (Ndim, Ndim, Ndim, Ndim, NF, 2)
-      complex (qc), intent (inout) :: A (Nmatrix, Nmatrix)
-      complex (qc), intent (out) :: B(Nmatrix)
-      complex (qc) :: A_left (Nmatrix, Nmatrix), A_right (Nmatrix, Nmatrix)
-!       complex (qc), intent (inout) :: A_fast(Nmatrix, Nmatrix) ! for a faster calculation (no frequency on the rates)
-      complex (qc), intent (inout) :: A_fast_left(Nmatrix, Nmatrix),A_fast_right(Nmatrix, Nmatrix) ! for a faster calculation (no frequency on the rates)
-      real (q) :: omega
-      logical :: faster
-        
-    if ((faster).and.((A_fast_right(1,1)+A_fast_left(1,1)).ne.zero)) then
-        A = zero
-        A = A_fast_left+A_fast_right
-        
-        ! loop on i1
-        do n=1,NF ! n=1 will correspond to the lowest floquet number: 
-        ! if NF=5 then n=1 means a Floquet number of -2
-        do i1=1,Nmatrix/NF 
-            l=1+(i1-1)/ndim
-            j=i1-(l-1)*ndim
-
-    A (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1)) = A (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1))&
-    & + Delta(l,j)+ omega*(n-NCF-1)
-        
-        enddo
-        enddo
-        
-    else
-        ! Initialize NF=2*NCF+1
-        A = zero
-        A_left=zero
-        A_right=zero
-! loop on i1
-        do n=1,NF ! n=1 will correspond to the lowest floquet number: 
-        ! if NF=5 then n=1 means a Floquet number of -2
-        do i1=1,Nmatrix/NF 
-            l=1+(i1-1)/ndim
-            j=i1-(l-1)*ndim 
-            
-! loop on i2
-            do m = max(1,n-2),min(NF,n+2)  ! 2 because of having a cosine square
-            do i2=1,Nmatrix/NF 
-            v=1+(i2-1)/ndim
-            u=i2-(v-1)*ndim
-
-!            
-! corresponding term in the rate equation:
-!            Gamma_{j,v,v,u:n-m} rho_{l,u,m}
-              p = (n-m) + NCF + 1
-              i2p= (l-1)*ndim + u
-        A_left (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1)) = A_left (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1))&
-        & +  ui*((G (j,v,v,u,p,2)))
-        A_right (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1)) = A_right (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1))&
-        & +  ui*((G (j,v,v,u,p,1)))
-
-!             write(125,*)l,j,v,u,n,m,i1,i2,i2p,hartree*A(i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1))&
-!                 &,(G (j,v,v,u,p,1)+G (j,v,v,u,p,2))*Hartree
-
-! second term
-!           Gamma_{l,v,v,u:m-n} rho_{u,j,m}
-              p = (m-n) + NCF + 1
-              i2p=(u-1)*ndim + j
-         A_left (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1)) = A_left (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1))&
-        & +  ui*CONJG((G (l,v,v,u,p,2)))
-        A_right (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1)) = A_right (i1+ndim*ndim*(n-1),i2p+ndim*ndim*(m-1))&
-        & +  ui*CONJG((G (l,v,v,u,p,1)))
-
-! third term
-!           Gamma_{u,j,l,v:m-n} rho_{v,u,m}
-              p = (m-n) + NCF + 1
-         A_left (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1)) = A_left (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1))&
-        & -  ui*CONJG(G (u,j,l,v,p,2))
-        A_right (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1)) = A_right (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1))&
-        & -  ui*CONJG(G (u,j,l,v,p,1))
-
-        
-! fourth term
-!           Gamma_{v,l,j,u:n-m} rho_{v,u,m}
-              p = (n-m) + NCF + 1
-         A_left (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1)) = A_left (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1))&
-        & -  ui*(G (v,l,j,u,p,2))
-        A_right (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1)) = A_right (i1+ndim*ndim*(n-1),i2+ndim*ndim*(m-1))&
-        & -  ui*(G (v,l,j,u,p,1))
-
-        enddo
-        enddo
-        
-
-        A (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1)) = A (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1))&
-        &+ Delta (l,j) + omega*(n-NCF-1)
-        
-        
-        enddo
-        enddo
-
-        A=A+A_left+A_right
-        A_fast_left = A_left
-        A_fast_right= A_right
-        
-!         if(faster)then
-!         ! loop on i1
-!         do n=1,NF ! n=1 will correspond to the lowest floquet number:
-!         ! if NF=5 then n=1 means a Floquet number of -2
-!         do i1=1,Nmatrix/NF
-!
-!     A_fast (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1)) = A_fast (i1+ndim*ndim*(n-1),i1+ndim*ndim*(n-1))&
-!     & - omega*(n-NCF-1) ! we extracted the diagonal in omega for possible faster calculation
-!
-!         enddo
-!         enddo
-!         endif
-        
-endif
-        
-        do n=1,NF
-        
-        A(1+ndim*ndim*(n-1),:)=zero
-        
-        do l=1,Ndim
-        
-        i2 = 1 + ndim*ndim*(n-1) + (l-1)*(Ndim+1)
-        A(1+ndim*ndim*(n-1),i2)=one
-!         print*,n,l,i2,1+ndim*ndim*(n-1)
-
-        enddo
-        enddo
-        
-        ! B definition entails detailed balance
-        B = zero
-        B (1+ndim*ndim*(NCF)) = one
-        
-               return
-      end subroutine coeff_matrix 
-!
 ! Rate computation
 !
-   subroutine rates (Ndim, orb, omega, gamma_0, lambda, Spin_polarization,&
+   subroutine rates (Ndim, orb, frequency, gamma_0, lambda, Spin_polarization,&
         NCF, p_max, Adrive, phi, Bdrive, GammaC, bias, Delta, Cutoff, Temperature,& 
         seHa, WW, gau, N_int, GA, GCA)
      implicit none
@@ -152,7 +12,7 @@ endif
      integer :: Ndim, NCF, p_max, orb, N_int
      complex (qc), intent (in), dimension(Ndim,Ndim,orb) :: lambda 
      real (q), intent (in), dimension(Ndim, Ndim) :: Delta
-     real (q), intent (in) :: gamma_0, Temperature, omega, Spin_polarization
+     real (q), intent (in) :: gamma_0, Temperature, frequency, Spin_polarization
      real (q), intent (in) :: Cutoff, WW, gau, phi, seHa, bias, Bdrive
      complex (qc), intent (in) :: GammaC, Adrive
 
@@ -172,7 +32,7 @@ endif
 
 !       Calculate Contribution of Bessel functions
 !       K(p) = J(p) + .5*A*(J(p-1)+ J(p+1))
-        Kbess = Bessel_K(Bdrive/omega, Adrive, p_max)
+        Kbess = Bessel_K(Bdrive/frequency, Adrive, p_max)
 
 !       loop on states:
         level_j: do j=1,Ndim
@@ -190,7 +50,7 @@ endif
         end if
 
 !       Green's functions integrals involving occupation factors
-        call ExtendedFermiIntegral(Delta(j,u), omega, bias, p_max-1, Temperature, Cutoff, &
+        call ExtendedFermiIntegral(Delta(j,u), frequency, bias, p_max-1, Temperature, Cutoff, &
                         GammaC, N_int, WW, gau, fermi, ufermi)
 
         call Orbital_overlaps(lambda, j, u, orb, g_up, g_dn, Ndim, Lvluj, Ljulv)
@@ -230,12 +90,12 @@ endif
       end function FermiDist
 
       
-        subroutine ExtendedFermiIntegral (D, omega, bias, p_max, Temperature, Cutoff, GammaC,&
+        subroutine ExtendedFermiIntegral (D, frequency, bias, p_max, Temperature, Cutoff, GammaC,&
                  N, WW, gau, fermi, ufermi)
         implicit none
         
         integer, intent(in) :: N, p_max
-        real (q), intent(in) :: D, bias, Temperature, Cutoff, omega, WW, gau
+        real (q), intent(in) :: D, bias, Temperature, Cutoff, frequency, WW, gau
         complex (qc), intent(in) :: GammaC
         
         complex (qc), intent(out), dimension(2*p_max+1) :: fermi, ufermi
@@ -282,7 +142,7 @@ endif
         ploop: do p = -p_max, p_max
                 p_ind = p+p_max+1
    
-                e = -Cutoff + p*omega
+                e = -Cutoff + p*frequency
                 fermi(p_ind)  = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
                         -rGammaC, rGammaCsq, f(1))
                 ufermi(p_ind) = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
@@ -297,7 +157,7 @@ endif
                 
                 enddo istep
              
-             e = Cutoff + p*omega
+             e = Cutoff + p*frequency
              fermi(p_ind)  = fermi(p_ind) +  .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
                         -rGammaC, rGammaCsq, f(N))
              ufermi(p_ind) = ufermi(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
