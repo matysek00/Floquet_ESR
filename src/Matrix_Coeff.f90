@@ -20,17 +20,17 @@ subroutine coef_matrix_transport (Ndim, NF, NCF, GA, QME_Tensor_A)
     level_j: do j=1, Ndim
     level_v: do v=1, Ndim
     level_u: do u=1, Ndim
-!               Gamma_{j,v,v,u:n-m} rho_{l,u,m}
-            QME_Tensor_A (j,l,n, u,l,m) = QME_Tensor_A (j,l,n, u,l,m) + ui*GA (j,v,v,u,n-m+NCF+1)
+!       Gamma_{j,v,v,u:n-m} rho_{l,u,m}
+        QME_Tensor_A (j,l,n, u,l,m) = QME_Tensor_A (j,l,n, u,l,m) + ui*GA (j,v,v,u,n-m+NCF+1)
 
-!               Gamma_{l,v,v,u:m-n} rho_{u,j,m}
-            QME_Tensor_A (j,l,n, j,u,m) = QME_Tensor_A (j,l,n, j,u,m) + ui*CONJG(GA (l,v,v,u,m-n+NCF+1))
+!       Gamma_{l,v,v,u:m-n} rho_{u,j,m}
+        QME_Tensor_A (j,l,n, j,u,m) = QME_Tensor_A (j,l,n, j,u,m) + ui*CONJG(GA (l,v,v,u,m-n+NCF+1))
 
-!               Gamma_{u,j,l,v:m-n} rho_{v,u,m}
-            QME_Tensor_A (j,l,n, u,v,m) = QME_Tensor_A (j,l,n, u,v,m) - ui*CONJG(GA (u,j,l,v,m-n+NCF+1))
-            !
-!               !Gamma_{v,l,j,u:n-m} rho_{v,u,m}
-            QME_Tensor_A (j,l,n, u,v,m) = QME_Tensor_A (j,l,n, u,v,m) - ui*(GA (v,l,j,u,n-m+NCF+1))
+!       Gamma_{u,j,l,v:m-n} rho_{v,u,m}
+        QME_Tensor_A (j,l,n, u,v,m) = QME_Tensor_A (j,l,n, u,v,m) - ui*CONJG(GA (u,j,l,v,m-n+NCF+1))
+           
+!       Gamma_{v,l,j,u:n-m} rho_{v,u,m}
+        QME_Tensor_A (j,l,n, u,v,m) = QME_Tensor_A (j,l,n, u,v,m) - ui*(GA (v,l,j,u,n-m+NCF+1))
             
     enddo level_u
     enddo level_v
@@ -69,7 +69,7 @@ subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
     do n=1,NF
     do l = 1, Ndim
     do j = 1, Ndim
-            QME_Tensor (j,l,n, j,l,n) = Delta (l,j) + frequency*(n-NCF-1)
+        QME_Tensor (j,l,n, j,l,n) = Delta (l,j) + frequency*(n-NCF-1)
     enddo
     enddo
     enddo
@@ -122,6 +122,10 @@ subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
     endif
 
     Rho = reshape(B, (/Ndim, Ndim, NF/))
+    do n = 1, NF
+!   Make the order of indicies consistent with the documentation
+        Rho (:,:, n) = transpose(Rho (:,:, n))
+    enddo
     
     deallocate (QME_Tensor_R, QME_Tensor_L)
     deallocate (QME_Tensor, A, B)

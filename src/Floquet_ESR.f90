@@ -103,7 +103,7 @@ implicit none
   call coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
 
 ! Compute the DC electron current
-     call Current (Ndim, NF, NCF, Rho, GC(:,:,:,:,:,1+Electrode), curr)
+     call Current (Ndim, NF, NCF, Rho, GC(:,:,:,:,:,2-Electrode), curr)
 
 if (feedbackon) then
   print *, 'Feedback not implemented. Sorry :('
@@ -135,11 +135,11 @@ endif
     endif
       write(unit_rates,*)hartree*dble(G(l,j,u,v,NCF+1-2:NCF+1+2,2)),hartree*dimag(G(l,j,u,v,NCF+1-2:NCF+1+2,2)),&
         &hartree*dble(G (l,j,u,v,NCF+1-2:NCF+1+2,1)), hartree*dimag(G (l,j,u,v,NCF+1-2:NCF+1+2,1)), l,j,u,v, &
-        &omega/(2*pi_d*time_unit)
+        &frequency/(2*pi_d*time_unit)
 !     WE ONLY WRITE 5 FLOQUET NUMBERS: -2,-1,0,1,2.
       write(unit_rates+1,*)hartree*dble(G(l,j,u,v,NCF+1,2)),hartree*dimag(G(l,j,u,v,NCF+1,2)),&
         &hartree*dble(G (l,j,u,v,NCF+1,1)), hartree*dimag(G (l,j,u,v,NCF+1,1)), l,j,u,v, &
-        &omega/(2*pi_d*time_unit)
+        &frequency/(2*pi_d*time_unit)
 !     simplified version of writing the rates, only Floquet 0  
     enddo
     enddo
@@ -155,16 +155,17 @@ endif
 ! Current
       
 !      call clock ('STEP 6:: Writing output ', 1)
-!write (unit_curr, *) frequency/(2*pi_d*time_unit), curr(NCF+1)*pA,curr(NCF+2)*pA,curr(NCF+3)*pA ! 0,1,2a
+write (unit_curr, *) frequency/(2*pi_d*time_unit), curr*pA ! 0,1,2a
 open (unit_curr, file='Current_0.dat')
 write (unit_curr, *) 'Frequency (GHz) / Current (pA)', (i, i=1, NF)
-write (unit_curr, *) frequency/(2*pi_d*time_unit), (curr(i)*pA, i=1, NF)
+write (unit_curr, *) frequency/(2*pi_d*time_unit), (curr(i)*pA, i=NCF+1, NF)
 close (unit_curr)
 
       open (unit_error, file='strange_populations.dat')
            do l=1,Ndim
 
             sum_rule  = sum_rule  + dble (Rho (l,l,NCF))
+! TODO: This is not working I need to fix it
             if((dble(Rho(l,l,NCF))<-1.E-8).or.(dble(Rho(l,l,NCF))>1.000001_q).or.(dabs(dimag(Rho(l,l,NCF)))>1E-6)&
               &.or.(sum_rule>1.000001_q))then
                 write(unit_error,*) Rho(l,l,NCF),l,sum_rule,Ndim,bias_R*hartree,bias_L*hartree,frequency/(2*pi_d*time_unit)
@@ -175,16 +176,15 @@ close (unit_curr)
       close (unit_error)
 
            do i = -NCF, NCF
-            write(filename, '(I5.5)') 'POPULATIONS_n', i, '.dat'
-            print *, filename
+            write(filename, '(A13, I0.3, A4)') 'POPULATIONS_n', i, '.dat'
             open (unit_pop+i, file=filename)
             write (unit_pop+i,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,i+NCF+1)), l= 1, Ndim)
             close (unit_pop+i)
            enddo
-
+      
       if (write_coherences) then
         do i = -NCF, NCF
-            write(filename, '(I5.5)') 'COHERENCES_n', i, '.dat'
+            write(filename, '(A12, I0.3, A4)') 'COHERENCES_n', i, '.dat'
             open (unit_coh+i, file=filename)
             write (unit_coh+i,*) frequency/(2*pi_d*time_unit), dble(Rho (:,:,i+NCF+1)), dimag(Rho (:,:,i+NCF+1)) 
             close (unit_coh+i)
@@ -196,12 +196,12 @@ close (unit_curr)
 
       if (spinflo) then
 
-        do i =1, -NCF, NCF
-          write(filename, '(I5.5)') 'SpinFloquet_', i, '.dat'
+        do i = -NCF, NCF
+          write(filename, '(A13, I0.3, A4)') 'SpinFloquet_n', i, '.dat' 
           open (unit_floq+i, file=filename)
-          call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, Rho(:,:,i+NCF+1), hx, hy, hz,&
+          call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, Rho(:,:,i+(NCF+1)), hx, hy, hz,&
                     &Sx,Sy,Sz,Sh,spin2_ave)
-          write (unit_floq+k,*) frequency/(2*pi_d*time_unit),&
+          write (unit_floq+i,*) frequency/(2*pi_d*time_unit),&
               &(real(Sx(l)), real(Sy(l)), real(Sz(l)), real(Sh(l)),  l=1, Nm),&
               & real(spin2_ave),real(sqrt(1+4*(spin2_ave))-1)*0.5
           close (unit_floq+i)
