@@ -22,6 +22,7 @@ Use QME_F !(Quantum Master Equation) contains rates and The Matrix
 Use Transport_F ! computation of electron current
 Use SpinTools
 Use Matrix_Coeff
+use output
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 implicit none
 
@@ -103,7 +104,7 @@ implicit none
   call coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
 
 ! Compute the DC electron current
-     call Current (Ndim, NF, NCF, Rho, GC(:,:,:,:,:,2-Electrode), curr)
+  call Current (Ndim, NF, NCF, Rho, GC(:,:,:,:,:,2-Electrode), curr)
 
 if (feedbackon) then
   print *, 'Feedback not implemented. Sorry :('
@@ -121,92 +122,12 @@ endif
 !   call clock ('Tip remains static. Feedback off. Rates computed.', 2)
 !endif
 
-  ! Here we will write all rates of zero floquet to be analyzed later on
-     open (unit_rates, file='rates_floquet.dat')
-     open (unit_rates+1, file='rates_floquet0.dat')
-
-    do l=1,Ndim
-    do j=1,Ndim
-    do u=1,Ndim
-    do v=1,Ndim
-    if ((G (l,j,u,v,NCF+1,1)+G (l,j,u,v,NCF+1,2)).eq.zero)then
-    ! if the rates are zero, we do not write them
-        cycle
-    endif
-      write(unit_rates,*)hartree*dble(G(l,j,u,v,NCF+1-2:NCF+1+2,2)),hartree*dimag(G(l,j,u,v,NCF+1-2:NCF+1+2,2)),&
-        &hartree*dble(G (l,j,u,v,NCF+1-2:NCF+1+2,1)), hartree*dimag(G (l,j,u,v,NCF+1-2:NCF+1+2,1)), l,j,u,v, &
-        &frequency/(2*pi_d*time_unit)
-!     WE ONLY WRITE 5 FLOQUET NUMBERS: -2,-1,0,1,2.
-      write(unit_rates+1,*)hartree*dble(G(l,j,u,v,NCF+1,2)),hartree*dimag(G(l,j,u,v,NCF+1,2)),&
-        &hartree*dble(G (l,j,u,v,NCF+1,1)), hartree*dimag(G (l,j,u,v,NCF+1,1)), l,j,u,v, &
-        &frequency/(2*pi_d*time_unit)
-!     simplified version of writing the rates, only Floquet 0  
-    enddo
-    enddo
-    enddo
-    enddo
-
-     close(unit_rates)
-     close(unit_rates+1)
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                    output the results                                  !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Current
       
 !      call clock ('STEP 6:: Writing output ', 1)
-write (unit_curr, *) frequency/(2*pi_d*time_unit), curr*pA ! 0,1,2a
-open (unit_curr, file='Current_0.dat')
-write (unit_curr, *) 'Frequency (GHz) / Current (pA)', (i, i=1, NF)
-write (unit_curr, *) frequency/(2*pi_d*time_unit), (curr(i)*pA, i=NCF+1, NF)
-close (unit_curr)
-
-      open (unit_error, file='strange_populations.dat')
-           do l=1,Ndim
-
-            sum_rule  = sum_rule  + dble (Rho (l,l,NCF))
-! TODO: This is not working I need to fix it
-            if((dble(Rho(l,l,NCF))<-1.E-8).or.(dble(Rho(l,l,NCF))>1.000001_q).or.(dabs(dimag(Rho(l,l,NCF)))>1E-6)&
-              &.or.(sum_rule>1.000001_q))then
-                write(unit_error,*) Rho(l,l,NCF),l,sum_rule,Ndim,bias_R*hartree,bias_L*hartree,frequency/(2*pi_d*time_unit)
-                write(*,*) 'WEIRD RESULTS! -> CHECK strange_populations.dat but we continue...'
-!                 stop
-              end if
-           enddo
-      close (unit_error)
-
-           do i = -NCF, NCF
-            write(filename, '(A13, I0.3, A4)') 'POPULATIONS_n', i, '.dat'
-            open (unit_pop+i, file=filename)
-            write (unit_pop+i,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,i+NCF+1)), l= 1, Ndim)
-            close (unit_pop+i)
-           enddo
-      
-      if (write_coherences) then
-        do i = -NCF, NCF
-            write(filename, '(A12, I0.3, A4)') 'COHERENCES_n', i, '.dat'
-            open (unit_coh+i, file=filename)
-            write (unit_coh+i,*) frequency/(2*pi_d*time_unit), dble(Rho (:,:,i+NCF+1)), dimag(Rho (:,:,i+NCF+1)) 
-            close (unit_coh+i)
-        enddo
-              ! the order is alter by the way fortran print this array so we have for Ndim=4
-              ! t Re 11 Re 21 Re 31 Re 41 Re 12 Re 22 Re 32  Re 42 ...
-              ! Im 11 Im 21 Im 31 Im 41 Im 12 Im 22 Im 32 Im 42 ...
-      endif
-
-      if (spinflo) then
-
-        do i = -NCF, NCF
-          write(filename, '(A13, I0.3, A4)') 'SpinFloquet_n', i, '.dat' 
-          open (unit_floq+i, file=filename)
-          call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, Rho(:,:,i+(NCF+1)), hx, hy, hz,&
-                    &Sx,Sy,Sz,Sh,spin2_ave)
-          write (unit_floq+i,*) frequency/(2*pi_d*time_unit),&
-              &(real(Sx(l)), real(Sy(l)), real(Sz(l)), real(Sh(l)),  l=1, Nm),&
-              & real(spin2_ave),real(sqrt(1+4*(spin2_ave))-1)*0.5
-          close (unit_floq+i)
-        enddo
-      endif
             
     write(*,*) ''
     write(*,*) '************************************************************************************************'
@@ -214,22 +135,26 @@ close (unit_curr)
     write(*,*) ''
     write(*,*) 'Every output is divided by Floquet numbers 0,-1,1 (n indicates the minus sign)'
     write(*,*) ''
+    
+    call write_rate_out (G, NCF, Ndim, frequency)
+    call write_cur_out (curr, frequency)
+    call check_populations (Rho, NCF, Ndim, bias_R, bias_L, frequency)
+    
+    if (write_populations) then
+        call write_pop_out (Rho, NCF, Ndim, frequency)
+    endif
 
-        if (write_populations) then
-            write(*,*) 'Populations are written in POPULATIONS_'
-        endif
-    write(*,*) ''
-        if (write_coherences) then
-            write(*,*) 'Coherences are written in COHERENCES_'
-        endif
-    write(*,*) ''
-        if (spinflo) then
-            write(*,*) 'Spin Sx,Sy,Sz,Sh per site are written in SpinFloquet_'
-        endif
+    if (write_coherences) then
+        call write_coh_out (Rho, NCF, frequency)
+    endif
 
-    write(*,*) ''
-     write(*,*) 'No zero real and imag left and right rates for Floquet numbers -2,-1,0,1,2 written in rates_floquet.dat'
-     write(*,*) 'while rates_floquet0.dat contains only the Floquet zero'
+    if (spinflo) then
+        call write_spin_out (Rho, NCF, Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, hx, hy, hz,&
+                              Sx, Sy, Sz, Sh, spin2_ave)
+    endif
+
+    write(*,*) 'No zero real and imag left and right rates for Floquet numbers -2,-1,0,1,2 written in rates_floquet.dat'
+    write(*,*) 'while rates_floquet0.dat contains only the Floquet zero'
     write(*,*) ''
     write(*,*) 'DC current wrote in Current_0.dat'
 
