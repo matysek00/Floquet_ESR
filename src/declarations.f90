@@ -78,7 +78,7 @@ module declarations
   logical :: write_populations, write_coherences, spinflo,feedbackon
 
 ! character
-   character ( len = 100 ) :: Name_output, output_file, output_fourier, output_ESR, UPLO
+   character ( len = 100 ) :: Name_output, output_file, output_fourier, output_ESR, UPLO, filename
 
 
 end module declarations
