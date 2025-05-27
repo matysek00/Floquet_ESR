@@ -136,16 +136,16 @@ endif
     write(*,*) 'Every output is divided by Floquet numbers 0,-1,1 (n indicates the minus sign)'
     write(*,*) ''
     
-    call write_rate_out (G, NCF, Ndim, frequency)
-    call write_cur_out (curr, frequency)
     call check_populations (Rho, NCF, Ndim, bias_R, bias_L, frequency)
+    call write_rate_out (G, NCF, Ndim)
+    call write_cur_out (curr, NCF)
     
     if (write_populations) then
-        call write_pop_out (Rho, NCF, Ndim, frequency)
+        call write_pop_out (Rho, NCF, Ndim)
     endif
 
     if (write_coherences) then
-        call write_coh_out (Rho, NCF, frequency)
+        call write_coh_out (Rho, NCF)
     endif
 
     if (spinflo) then

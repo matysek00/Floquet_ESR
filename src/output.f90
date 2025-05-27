@@ -4,20 +4,20 @@ use OpenFiles !all units of files in open statements are here
 use SpinTools
 CONTAINS
 
-    subroutine write_rate_out(G, NCF, Ndim, frequency)
+    subroutine write_rate_out(G, NCF, Ndim)
     implicit none
     ! Declare all arguments and local variables
     complex(q), intent(in) :: G(:,:,:,:,:,:)
-    real(q), intent(in) :: frequency
     integer, intent(in) :: NCF, Ndim
 
-    integer :: l, j, u, v
+    integer :: l, j, u, v, pn
     complex(qc) :: G_temp(NCF, 2)
 
     open (unit_rates, file='rates_floquet.dat')
     open (unit_rates+1, file='rates_floquet0.dat')
-!   TODO: add a header to the file
 
+    write (unit_rates, *) 'l j u v n Re(GL_n)(Hart) Im(GL_n)(Hart) Re(GR_n)(Hart) Im(GR_n)(Hart)'
+    write (unit_rates+1, *) 'l j u v Re(GL_0)(Hart) Im(GL_0)(Hart) Re(GR_0)(Hart) Im(GR_0)(Hart)'
     do l=1,Ndim
     do j=1,Ndim
     do u=1,Ndim
@@ -27,20 +27,23 @@ CONTAINS
         if ((G_temp(NCF+1,1)+G_temp(NCF+1,2)) == (0.0_q,0.0_q)) then
 !           if the rates are zero, we do not write them
             cycle
-        end if
-
-        write (unit_rates,*) frequency/(2*pi_d*time_unit), l,j,u,v,& 
-            dble(G_temp(:,2)), dimag(G_temp(:,2)),&
-            dble(G_temp(:,1)), dimag(G_temp(:,1))
+        endif
+        
+        do pn = -NCF, NCF
+            write (unit_rates,*) l,j,u,v,pn,& 
+                dble(G_temp(pn+NCF+1,2)), dimag(G_temp(pn+(NCF+1),2)),&
+                dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
+        enddo 
 
 !       simplified version of writing the rates, only Floquet 0  
-        write (unit_rates+1,*) frequency/(2*pi_d*time_unit), l,j,u,v,& 
+        write (unit_rates+1,*) l,j,u,v,& 
             dble(G_temp(NCF+1,2)), dimag(G_temp(NCF+1,2)),&
             dble(G_temp(NCF+1,1)), dimag(G_temp(NCF+1,1))
-    end do
-    end do
-    end do
-    end do
+        
+    enddo
+    enddo
+    enddo
+    enddo
 
     close(unit_rates)
     close(unit_rates+1)
@@ -75,61 +78,69 @@ subroutine check_populations(Rho, NCF, Ndim, bias_R, bias_L, frequency)
 end subroutine check_populations
 
 
-subroutine write_cur_out(current, frequency)
+subroutine write_cur_out(current, NCF)
     implicit none
     real(q), intent(in) :: current(:)
-    real(q), intent(in) :: frequency
-    
+    integer, intent(in) :: NCF
+    integer :: pn
+
     open (unit_curr, file='Current_0.dat')
-    write (unit_curr, *) 'Frequency (GHz) / Current (pA)', (i, i=1, NF)
-    write (unit_curr, *) frequency/(2*pi_d*time_unit), (curr(i)*pA, i=NCF+1, NF)
+    write (unit_curr, *) 'n Current(pA)'
+    do pn = -NCF, NCF
+        write (unit_curr, *) pn, current(pn+NCF+1)*pA
+    enddo
     close (unit_curr)
 
     return
 end subroutine write_cur_out
 
 
-subroutine write_pop_out(Rho, NCF, Ndim, frequency)
+subroutine write_pop_out(Rho, NCF, Ndim)
     implicit none
     integer, intent(in) :: NCF, Ndim
-    real(q), intent(in) :: frequency
     complex (qc), intent(in) :: Rho(:,:,:)
 
-    integer :: i, l
-    character(len=50) :: filename
+    integer :: l, pn 
     
-    write(*,*) 'Populations are written in POPULATIONS_'
+    
+    write(*,*) 'Populations are written in POPULATIONS.dat'
     write(*,*) ''
-    
-    do i = -NCF, NCF
-        write (filename, '(A13, I0.3, A4)') 'POPULATIONS_n', i, '.dat'
-        open  (unit_pop+i, file=filename)
-        write (unit_pop+i,*) frequency/(2*pi_d*time_unit), (dble(Rho (l,l,i+NCF+1)), l= 1, Ndim)
-        close (unit_pop+i)
+    open  (unit_pop, file='POPULATIONS.dat')
+
+    write (unit_pop,*) 'n Rho(1,1,n) Rho(2,2,n) ... Rho(Ndim,Ndim,n)'
+
+    do pn = -NCF, NCF
+        write (unit_pop,*) pn, (dble(Rho (l,l,pn+NCF+1)), l=1, Ndim)
     enddo
+    close (unit_pop)
 
     return
 end subroutine write_pop_out
 
 
-subroutine write_coh_out(Rho, NCF, frequency)
+subroutine write_coh_out(Rho, NCF)
     implicit none
     integer, intent(in) :: NCF
-    real(q), intent(in) :: frequency
     complex(qc), intent(in) :: Rho(:,:,:)
-    integer :: i
-    character(len=30) :: filename
+    integer :: pn
     
     write(*,*) 'Coherences are written in COHERENCES_'
     write(*,*) ''
-
-    do i = -NCF, NCF
-        write (filename, '(A12, I0.3, A4)') 'COHERENCES_n', i, '.dat'
-        open  (unit_coh+i, file=filename)
-        write (unit_coh+i,*) frequency/(2*pi_d*time_unit), dble(Rho (:,:,i+NCF+1)), dimag(Rho (:,:,i+NCF+1))
-        close (unit_coh+i)
+    
+    open  (unit_coh, file='COHERENCES.dat')
+    write (unit_coh,*) 'u v pn Re(Rho(u,v,pn)) Im(Rho(u,v,pn))'
+    
+    do u = 1, Ndim
+    do v = 1, Ndim
+        do pn = -NCF, NCF    
+        if ((Rho (u,v,pn+NCF+1)).ne.zero) then
+            write (unit_coh,*) u,v,pn, dble(Rho (u,v,pn+NCF+1)), dimag(Rho (u,v,pn+NCF+1))
+        endif
+        enddo
     enddo
-
+    enddo
+    
+    close (unit_coh)
     return
 end subroutine write_coh_out
 
@@ -143,29 +154,27 @@ subroutine write_spin_out (Rho, NCF, Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T,
     complex(q), intent(in) :: Rho(:,:,:), H(:,:)
     complex(q), intent(inout) :: spin2_ave
     complex(q), intent(inout), allocatable :: Sx(:), Sy(:), Sz(:), Sh(:)
-    real(q) :: frequency
-    character(len=30) :: filename
     
     ! Declare local variables
 
-    integer ::  i, l
+    integer ::  pn, l
     
     write(*,*) 'Spin Sx,Sy,Sz,Sh per site are written in SpinFloquet_'
     write(*,*) ''
+    open (unit_floq, file='SpinFloquet.dat')
+    write (unit_floq,*) 'n ((Sx(1) Sy(1) Sz(1) Sh(1)) (Sx(2) Sy(2) Sz(2)) ...) spin2_ave real(sqrt(1+4*(spin2_ave))-1)*0.5'
     
-    do i = -NCF, NCF
-        
-        write(filename, '(A13, I0.3, A4)') 'SpinFloquet_n', i, '.dat' 
-        open (unit_floq+i, file=filename)
-
-        call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, Rho(:,:,i+NCF+1), hx, hy, hz,&
+    do pn = -NCF, NCF
+               
+        call SpinFloquet (Nm, Ndim, Ss, spinX, spinY, spinZ, spin2_T, H, Rho(:,:,pn+NCF+1), hx, hy, hz,&
                   Sx,Sy,Sz,Sh,spin2_ave)
-                
-        write (unit_floq+i,*) frequency/(2*pi_d*time_unit),&
+        
+        write (unit_floq,*) pn,&
             (real(Sx(l)), real(Sy(l)), real(Sz(l)), real(Sh(l)),  l=1, Nm),&
             real(spin2_ave),real(sqrt(1+4*(spin2_ave))-1)*0.5
-        close (unit_floq+i)
+        
     enddo
+    close (unit_floq)
 
     return
 end subroutine write_spin_out
