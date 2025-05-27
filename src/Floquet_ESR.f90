@@ -91,10 +91,8 @@ implicit none
   call rates (Ndim, orb, frequency, gamma_R_0, lambda, Spin_polarization_R,&
             NCF, p_max, A_R, phi, B_R, GammaC, bias_R, Delta, Cutoff, Temperature,& 
             seHa, WW, gau, N_int, GA, GCA)
-  G(:,:,:,:,:,1)  = GA
-  GC(:,:,:,:,:,1) = GCA
-  G(:,:,:,:,:,1)  = GA
-  GC(:,:,:,:,:,1) = GCA
+  G(:,:,:,:,:,1)  = GA(:,:,:,:,:)
+  GC(:,:,:,:,:,1) = GCA(:,:,:,:,:)
   
   !     left electrode
   call rates (Ndim, orb, frequency, gamma_L_0, lambda, Spin_polarization_L,&

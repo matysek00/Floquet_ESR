@@ -28,11 +28,10 @@
 0.                                  ! Spin polarization of electrode R, between -1 and 1
 0.5                                 ! Spin polarization of electrode L, between -1 and 1
 0                                   ! 0 is left and 1 is right electrode
-.true.                              !  .true. will compute the rates once (frequency small in rates)
---------------Bessel--------------------------
-0.0                                 ! B left electrode
-0.0                                 ! B right electrode
-10                                  ! number of bessel functions
+---------------Bessel-------------------------------------------
+0.0
+0.0
+10
 ---------------output file names----------------------------------
 .true.                              ! .true. to write the populations
 .true.                              ! .true. to write the populations and coherences
