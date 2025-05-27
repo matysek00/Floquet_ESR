@@ -4,6 +4,7 @@ module declarations
 
 ! PARAMETERS
 !TODO: some repetions some unused variables
+!TODO: some repetions some unused variables
 
   integer, parameter :: kk = SELECTED_INT_KIND (10)
   integer, parameter :: q = SELECTED_REAL_KIND(10)
@@ -27,17 +28,21 @@ module declarations
 
 ! numbers
   integer :: NF, INFO, ITER, LDA, LDB, LDX, Nmatrix, NRHS
-  integer :: Nd, i_m, Nplot, Ndim, N_freq, N_int, Ndim_old
-  integer :: i,ii, N, Nm, Np, i_, j, j1, j2, l, i_omega,k,FermiP, p_max
-  integer :: j3, j4, i1, i2, i3, i4, u, v, i_sigma, i2p
+  integer :: Nd, i_m, Nplot, Ndim, N_int, Ndim_old, p_max
+  integer :: i,ii, N, Nm, Np, i_, j, j1, j2, l, i_omega, k, FermiP, p, p_ind
+  integer :: j3, j4, i1, i2, i3, i4, u, v, i_sigma, i2p, n_index, nfour
   integer :: Electrode, NCF,orb,i_feed
-  real (q) :: eps_QD, U_Hubbard, p_mod, Freq_ini, step_freq,phi,Ef,sum_rule
-  real (q) :: px, py, pz, pxx, pyy, pzz, suma, omega, WW,gau,Iset,tol
-  real (q) :: bias_R, bias_L, Spin_polarization_R, Spin_polarization_L,seHa
-  real (q) :: Temperature, gamma_R_0, gamma_R_1, gamma_L_0, gamma_L_1, Cutoff
-  real (q) :: B_L, B_R
-  real (q) :: VDC,Freq_fin,ratio
-  complex (qc) :: A_L,A_R, spin2_ave, gammaC
+  real (q) :: eps_QD, U_Hubbard, p_mod,phi,Ef,sum_rule
+  real (q) :: px, py, pz, pxx, pyy, pzz, suma, omega, WW, gau, Iset, tol
+  real (q) :: bias_R, bias_L, bias, Spin_polarization_R, Spin_polarization_L, Spin_polarization, seHa
+  real (q) :: Temperature, gamma_R_0, gamma_R_1, gamma_L_0, gamma_L_1, Cutoff, gamma_0
+  real (q) :: VDC, ratio, Bdrive, B_L, B_R, frequency
+  complex (qc) :: A_L, A_R, spin2_ave, GammaC, Adrive
+  complex (qc) :: g_dn, g_up, bessel_contribution, ubessel_contribution
+  real (q) :: e, eFermi, step_e, esq, gaushift, WWsq, gausian, f, uf
+  real (q) :: imG, rGammaC, iGammaC, rGammaCsq, iGammaCsq
+  real (q) :: D
+
 ! arrays
   integer, allocatable :: IPIV (:)
   integer, allocatable :: mol1(:), mol2(:), N_in (:), N_block (:)
@@ -53,7 +58,7 @@ module declarations
   complex (qc), allocatable :: A_fast_left(:,:), A_fast_right(:,:)
   complex (qc), allocatable :: Ss(:,:,:,:), Sn (:,:,:), H_el(:,:)
   complex (qc), allocatable :: H (:,:), SprodS (:,:,:), SprodS2 (:,:,:)
-  complex (qc), allocatable :: Identity (:,:), A (:,:), B (:), X (:), XX(:)
+  complex (qc), allocatable :: Identity (:,:), A (:,:), B (:), Rho2 (:,:), XX(:)
   complex (qc), allocatable :: Sp (:,:), Sm (:,:)
   complex (qc), allocatable :: Sp2 (:,:), Sm2 (:,:)
   complex (qc), allocatable :: Sp4 (:,:), Sm4 (:,:)
@@ -61,19 +66,21 @@ module declarations
   complex (qc), allocatable :: spinX (:,:,:), spinY(:,:,:), spinZ(:,:,:)
   complex (qc), allocatable :: Sx_u (:,:,:), Sy_u (:,:,:), Sz_u (:,:,:)
   complex (qc), allocatable :: spin2_T(:,:), spin2(:,:,:)
-  complex (qc), allocatable :: lambda (:,:,:)
-  complex (qc), allocatable :: G (:,:,:,:,:,:), GC (:,:,:,:,:,:)
-  complex (qc), allocatable :: GA (:,:,:,:,:), GCA (:,:,:,:,:) ! For temporary storage of G and GC for left and right electrodes
-  complex (qc), allocatable :: rho (:,:)
-  complex (qc), allocatable:: fermiR_a(:,:), fermiL_a(:,:)
-  complex (qc), allocatable:: ufermiR_a(:,:), ufermiL_a(:,:)
+  complex (qc), allocatable :: lambda (:,:,:), Lvluj(:,:), Ljulv(:,:)
+  complex (qc), allocatable :: G (:,:,:,:,:,:), GC (:,:,:,:,:,:), GA (:,:,:,:,:), GCA (:,:,:,:,:)
+  complex (qc), allocatable :: rho (:,:,:)
+  complex (qc), allocatable :: fermiR_a(:,:), fermiL_a(:,:), fermi(:)
+  complex (qc), allocatable :: ufermiR_a(:,:), ufermiL_a(:,:), ufermi(:)
+  complex (qc), allocatable :: Kbess(:), Jbess(:)
+  complex (qc), allocatable :: QME_Tensor_A(:,:,:,:,:,:), QME_Tensor_R(:,:,:,:,:,:), QME_Tensor_L(:,:,:,:,:,:)
+  complex (qc), allocatable :: QME_Tensor_D(:,:,:,:,:,:), QME_Tensor(:,:,:,:,:,:)
 
 ! logical
   logical :: presence,runs,redimension,faster,presence2
   logical :: write_populations, write_coherences, spinflo,feedbackon
 
 ! character
-   character ( len = 100 ) :: Name_output, output_file, output_fourier, output_ESR, UPLO
+   character ( len = 100 ) :: Name_output, output_file, output_fourier, output_ESR, UPLO, filename
 
 
 end module declarations

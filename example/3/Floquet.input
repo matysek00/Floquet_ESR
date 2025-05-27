@@ -1,19 +1,19 @@
 *****************************************************************
 ************* Please keep this FORMAT ***************************
 *****************************************************************
-2                                 ! Maximum Floquet index, number of Floquets: NF = 2*NCF +1
-21.0                                ! Frequency (GHz)
+2                                   ! Maximum Floquet index, number of Floquets: NF = 2*NCF +1
+15.                                 ! Frequency (GHz)
 ---------------electrode set-up-----------------------------------
-.005                                ! in meV : gamma_R_0 = 2*pi*W_R_0*W_R_0*rho
-.0019996626067193854                ! in meV : gamma_L_0 = 2*pi*W_L_0*W_L_0*rho
+.0020                               ! in meV : gamma_R_0 = 2*pi*W_R_0*W_R_0*rho
+.0001                               ! in meV : gamma_L_0 = 2*pi*W_L_0*W_L_0*rho
 (0.,0.)                             ! real and imag A_R = gamma_R_1/gamma_R_0
-(0.5,0.)                            ! real and imag A_L = gamma_L_1/gamma_L_0
+(2,0.)                            ! real and imag A_L = gamma_L_1/gamma_L_0
 0                                   ! phase shift rad - azimuthal angle in the bloch sphere
 1                                   ! it multiplies the 2nd harmonic
-5000                               ! Cutoff (meV) for integral in Lambshift
-(5,5)                               ! Broadening of Green's function (meV)
-1000000                             ! Number of points in I11 and I21 (see Manual)
-300                                 ! Width of the gaussian of the PDOS (meV)
+100                                ! Cutoff (meV) for integral in Lambshift
+(0.0020,0.0)                              ! Broadening of Green's function (meV)
+500000                             ! Number of points in I11 and I21 (see Manual)
+100                                 ! Width of the gaussian of the PDOS (meV)
 0                                   ! >0 uses the gaussian PDOS with gau as max value, 0 a square PDOS
 1                                   ! set number of orbital, 1 will not use any Diego Lehman coeff
 .false.                             ! feedbackon .true. moving tip to have Iset
@@ -22,17 +22,16 @@
 10                                  ! ratio between gammas
 ---------------bias, temperature, spin polarization---------------
 0                                   ! 0 EF closer to muR if gR>>gL, 1 EF to muL, 2 Ef at mu with gamma>>
-0                                   ! in mV right electrode bias
--490                                ! in mV left electrode bias
+15                                   ! in mV right electrode bias
+-15                                ! in mV left electrode bias
 0.5                                 ! Temperature in Kelvin
 0.                                  ! Spin polarization of electrode R, between -1 and 1
-0.5                                 ! Spin polarization of electrode L, between -1 and 1
+1.0                                 ! Spin polarization of electrode L, between -1 and 1
 0                                   ! 0 is left and 1 is right electrode
-.true.                              !  .true. will compute the rates once (frequency small in rates)
---------------Bessel--------------------------
-0.0                                 ! B left electrode
-0.0                                 ! B right electrode
-10                                  ! number of bessel functions
+---------------Bessel-------------------------------------------
+0.0
+0.0
+5
 ---------------output file names----------------------------------
 .true.                              ! .true. to write the populations
 .true.                              ! .true. to write the populations and coherences

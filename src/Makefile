@@ -9,7 +9,7 @@ LIBFFT = # -lfftw3
 LIBS = $(LIBFFT) $(LIBLAPACK) $(LIBBLAS)
 
 OBJ= declarations.o declfft.o OpenFiles.o timer_gnu.o algebra.o io.o spin_parameters.o KrondProd.o \
-     H_QD.o QME_F.o Transport_F.o SpinTools.o feed_back_on.o Floquet_ESR.o
+     H_QD.o QME_F.o Transport_F.o SpinTools.o Matrix_Coeff.o output.o Floquet_ESR.o #feed_back_on.o
 
 Floquet_ESR.out: $(OBJ)
 	$(FC) $(FFLAGS) $(OBJ) $(LIBS) -o Floquet_ESR_v7.4.0.out
@@ -26,8 +26,8 @@ algebra.o: algebra.f90
 io.o: io.f90
 	$(FC) $(FFLAGS) $(FF) io.f90
 
-feed_back_on.o: feed_back_on.f90
-	$(FC) $(FFLAGS) $(FF) feed_back_on.f90
+#feed_back_on.o: feed_back_on.f90
+#	$(FC) $(FFLAGS) $(FF) feed_back_on.f90
 
 OpenFiles.o: OpenFiles.f90
 	$(FC) $(FFLAGS) $(FF) OpenFiles.f90
@@ -47,16 +47,22 @@ H_QD.o: H_QD.f90
 QME_F.o: QME_F.f90
 	$(FC) $(FFLAGS) $(FF) QME_F.f90
 
+Matrix_Coeff.o: Matrix_Coeff.f90
+	$(FC) $(FFLAGS) $(FF) Matrix_Coeff.f90
+
 Transport_F.o: Transport_F.f90
 	$(FC) $(FFLAGS) $(FF) Transport_F.f90
 
 SpinTools.o: SpinTools.f90
 	$(FC) $(FFLAGS) $(FF) SpinTools.f90
 
+output.o: output.f90
+	$(FC) $(FFLAGS) $(FF) output.f90
+
 Floquet_ESR.o: Floquet_ESR.f90
 	$(FC) $(FFLAGS) $(FF) Floquet_ESR.f90
 
 clean:
 	@echo "CLEANING up!"
-	rm -f *.o *.mod
+	rm -f *.o *.mod *.out
 

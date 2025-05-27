@@ -3,15 +3,15 @@ Use declarations
 Use OpenFiles
 CONTAINS
    subroutine reading_input ( gamma_R_0, A_R, gamma_L_0, A_L,phi,orb, &
-       NF,NCF,GammaC,Cutoff,WW,gau,redimension,Nd,Freq_ini,Freq_fin,step_freq,N_freq,&
+       NF,NCF,GammaC,Cutoff,WW,gau,redimension,Nd, frequency,&
        bias_R, bias_L, Spin_polarization_R, Spin_polarization_L, Temperature, &
-       Electrode,write_populations,write_coherences, spinflo,Ef,FermiP,seHa,&
-       feedbackon,Iset,tol,VDC,ratio, B_L, B_R, p_max)
+       Electrode, B_R, B_L, p_max, write_populations, write_coherences, spinflo, Ef, FermiP, seHa,&
+       feedbackon,Iset,tol,VDC,ratio)
    implicit none
-   integer :: Ninterval, Nfreq, Ntime, n, i, Electrode, N_freq, FermiP, p_max
+   integer :: Ninterval, Nfreq, Ntime, n, i, Electrode, FermiP, p_max
    real (q) :: Spin_polarization_R, Spin_polarization_L, Temperature
-   real (q) :: gamma_R_0,gamma_L_0,phi,Cutoff,seHa,tol,ratio, B_L, B_R
-   real (q) :: bias_R, bias_L, Freq_ini, step_freq, Freq_fin,WW,gau
+   real (q) :: gamma_R_0,gamma_L_0,phi,Cutoff,seHa,tol,ratio, frequency
+   real (q) :: bias_R, bias_L, step_freq,WW,gau, B_L, B_R
    real(q), intent(out) :: Ef,Iset,VDC
    logical :: write_populations, write_coherences, redimension,presence2,spinflo,feedbackon
    integer :: Nd,NF,NCF,orb
@@ -23,9 +23,10 @@ CONTAINS
        read (unit_input, *)  ! separator
        read (unit_input, *)  ! separator
        read (unit_input, *) NCF ! Maximum Floquet index, number of Floquets: 
-       read (unit_input, *) Freq_ini !(GHz)  Initial driving frequency f
-       read (unit_input, *) Freq_fin !(GHz)  Final driving frequency f
-       read (unit_input, *) N_Freq ! number of points in frequency swept
+       !read (unit_input, *) Freq_ini !(GHz)  Initial driving frequency f
+       !read (unit_input, *) Freq_fin !(GHz)  Final driving frequency f
+       !read (unit_input, *) N_Freq ! number of points in frequency swept
+       read (unit_input, *) frequency ! number of points in frequency swept
        read (unit_input, *)  ! separator
        read (unit_input, *) gamma_R_0 ! in meV : gamma_R_0= 2*pi*W_R_0*W_R_0*rho
        read (unit_input, *) gamma_L_0 ! in meV : gamma_L_0= 2*pi*W_R_0*W_L_0*rho
@@ -52,11 +53,10 @@ CONTAINS
        read (unit_input, *) Spin_polarization_R !  between -1 and 1
        read (unit_input, *) Spin_polarization_L !  between -1 and 1
        read (unit_input, *) Electrode !  0 is left and 1 is right
-       read (unit_input, *) faster !  .true. will compute the rates once (frequency small in rates)
        read (unit_input, *)  ! separator
+       read (unit_input, *) B_R 
        read (unit_input, *) B_L
-       read (unit_input, *) B_R
-       read (unit_input, *)  p_max
+       read (unit_input, *) p_max
        read (unit_input, *)  ! separator
        read (unit_input, *) write_populations ! .true. will write the populations only
        read (unit_input, *) write_coherences ! .true. will write the full density matrix
@@ -106,11 +106,9 @@ CONTAINS
 print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature (K), Polarization L,R:'
        print *, gammaC,Cutoff,WW,Temperature,Spin_polarization_L,Spin_polarization_R 
 
-       step_freq = (Freq_fin-Freq_ini)/(N_freq-1)
-
        call atomic_units (GammaC, Cutoff, WW,&
          gamma_R_0, gamma_L_0,Temperature, bias_R, &
-         bias_L, Ef, Freq_ini, Freq_fin, step_freq) ! Freq transformed from frequency to radial freq
+         bias_L, Ef, frequency) ! Freq transformed from frequency to radial freq
 
        VDC = bias_L - bias_R
 
@@ -137,7 +135,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
 
    subroutine  atomic_units (GammaC, Cutoff, WW,&
          gamma_R_0, gamma_L_0,Temperature, bias_R, &
-         bias_L, Ef, Freq_ini,Freq_fin, step_freq) ! Freq transformed from frequency to radial freq
+         bias_L, Ef, frequency) ! Freq transformed from frequency to radial freq
        implicit none
     integer, parameter :: q = SELECTED_REAL_KIND(10)
     integer, parameter :: qc = SELECTED_REAL_KIND(10)
@@ -147,8 +145,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
     real (q), parameter :: GHz = 4.135667696786E-3_q ! meV 
     real (q), parameter :: time_unit = 2.418884326505E-8_q ! nanoseconds
     real (q), parameter :: pA = .6623618237510E10_q !a.u. to pA 
-   real (q) :: Freq_ini,Freq_fin,step_freq
-   real (q) :: Temperature, WW,Ef
+   real (q) :: Temperature, WW, Ef, frequency
    real (q) :: gamma_R_0, gamma_L_0!, gamma_L_1, gamma_R_1
    real (q) :: bias_R, bias_L!, gammaC
    real (q) :: tolerance, Cutoff
@@ -168,9 +165,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
        bias_R = bias_R/Hartree
        bias_L = bias_L/Hartree
        Temperature = Temperature * 25.852_q / (Hartree*300._q)
-       Freq_ini = Freq_ini*2.*pi_d*time_unit
-       Freq_fin = Freq_fin*2.*pi_d*time_unit
-       step_freq = step_freq*2.*pi_d*time_unit
+       frequency = frequency*2.*pi_d*time_unit
        Ef=Ef/Hartree
 
    end subroutine atomic_units
