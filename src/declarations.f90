@@ -3,6 +3,7 @@ module declarations
   implicit none
 
 ! PARAMETERS
+!TODO: some repetions some unused variables
 
   integer, parameter :: kk = SELECTED_INT_KIND (10)
   integer, parameter :: q = SELECTED_REAL_KIND(10)

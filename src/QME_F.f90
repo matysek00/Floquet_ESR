@@ -80,6 +80,7 @@ CONTAINS
         function FermiDist (e) result (eFermi)
         implicit none
         real (q) :: eFermi
+        real (q) :: eFermi
         real (q), intent(in) :: e
         
         if ( e > 0._q ) then
@@ -105,7 +106,7 @@ CONTAINS
         real (q), dimension(N) :: f, uf        
         integer :: i, p, p_ind
 
-!       The FermiIntStep function is used to calculate the fermi integral
+!       The FermiIntegrand function is used to calculate the fermi integral
 !       G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
 !       A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
 !       uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
@@ -140,6 +141,7 @@ CONTAINS
         WWsq = WW**2
 
         ploop: do p = -p_max, p_max
+                p_ind = p+p_max+1
                 p_ind = p+p_max+1
    
                 e = -Cutoff + p*frequency
@@ -183,7 +185,7 @@ CONTAINS
                 integrand  = e/(esq + imG*riGammaCsq) + ui*riGammaC/(esq + riGammaCsq)
                 fermiInt = fd * integrand * gausian
         return
-        end function FermiIntStep
+        end function FermiIntegrand
 
 
         function Bessel_K(z, Adrive, p_max) result (Kbess)
