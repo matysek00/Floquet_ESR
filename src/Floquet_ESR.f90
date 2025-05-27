@@ -93,6 +93,8 @@ implicit none
             seHa, WW, gau, N_int, GA, GCA)
   G(:,:,:,:,:,1)  = GA
   GC(:,:,:,:,:,1) = GCA
+  G(:,:,:,:,:,1)  = GA
+  GC(:,:,:,:,:,1) = GCA
   
   !     left electrode
   call rates (Ndim, orb, frequency, gamma_L_0, lambda, Spin_polarization_L,&

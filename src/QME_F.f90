@@ -107,6 +107,7 @@ CONTAINS
         integer :: i, p, p_ind
 
 !       The FermiIntegrand function is used to calculate the fermi integral
+!       The FermiIntegrand function is used to calculate the fermi integral
 !       G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
 !       A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
 !       uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
@@ -185,6 +186,7 @@ CONTAINS
                 integrand  = e/(esq + imG*riGammaCsq) + ui*riGammaC/(esq + riGammaCsq)
                 fermiInt = fd * integrand * gausian
         return
+        end function FermiIntegrand
         end function FermiIntegrand
 
 
