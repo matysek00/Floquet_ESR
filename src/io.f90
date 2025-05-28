@@ -108,7 +108,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
 
        call atomic_units (GammaC, Cutoff, WW,&
          gamma_R_0, gamma_L_0,Temperature, bias_R, &
-         bias_L, Ef, frequency) ! Freq transformed from frequency to radial freq
+         bias_L, Ef, frequency, B_L, B_R) ! Freq transformed from frequency to radial freq
 
        VDC = bias_L - bias_R
 
@@ -135,7 +135,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
 
    subroutine  atomic_units (GammaC, Cutoff, WW,&
          gamma_R_0, gamma_L_0,Temperature, bias_R, &
-         bias_L, Ef, frequency) ! Freq transformed from frequency to radial freq
+         bias_L, Ef, frequency, B_L, B_R) ! Freq transformed from frequency to radial freq
        implicit none
     integer, parameter :: q = SELECTED_REAL_KIND(10)
     integer, parameter :: qc = SELECTED_REAL_KIND(10)
@@ -147,7 +147,7 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
     real (q), parameter :: pA = .6623618237510E10_q !a.u. to pA 
    real (q) :: Temperature, WW, Ef, frequency
    real (q) :: gamma_R_0, gamma_L_0!, gamma_L_1, gamma_R_1
-   real (q) :: bias_R, bias_L!, gammaC
+   real (q) :: bias_R, bias_L, B_L, B_R
    real (q) :: tolerance, Cutoff
    logical :: runs
    complex (qc) :: gammaC
@@ -167,6 +167,8 @@ print *,'Broadening (meV), Cutoff (meV), width gau is applied (meV), Temperature
        Temperature = Temperature * 25.852_q / (Hartree*300._q)
        frequency = frequency*2.*pi_d*time_unit
        Ef=Ef/Hartree
+       B_L = B_L/Hartree
+       B_R = B_R/Hartree
 
    end subroutine atomic_units
 
