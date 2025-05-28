@@ -54,7 +54,7 @@ subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
     complex (qc), allocatable :: QME_Tensor_R (:,:,:,:,:,:), QME_Tensor_L (:,:,:,:,:,:)
     complex (qc), allocatable :: QME_Tensor(:,:,:,:,:,:), A (:,:), B(:)
 
-    integer :: l, j, n, i2
+    integer :: l, j, n, i2, IPIV(Nmatrix)
 
 !   Solve The Quantum Master Equation writen as
 !       rho_{l,j,n} A_{l,j,n u,v,m}  = delta(v,1) * delta(u,1) * delta (n,0)
@@ -77,7 +77,7 @@ subroutine coeff_matrix (Ndim, frequency, NF, NCF, G, Nmatrix, Rho)
 !   Right and left electrode hopping
     call coef_matrix_transport (Ndim, NF, NCF, G(:,:,:,:,:,1), QME_Tensor_R) 
     call coef_matrix_transport (Ndim, NF, NCF, G(:,:,:,:,:,2), QME_Tensor_L) 
-    print *, 2 
+    
     QME_Tensor = QME_Tensor + QME_Tensor_L + QME_Tensor_R      
 
 !   I don't understand why we do this
