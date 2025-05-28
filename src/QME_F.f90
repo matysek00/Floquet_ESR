@@ -51,7 +51,7 @@ CONTAINS
 
 !       Green's functions integrals involving occupation factors
         call ExtendedFermiIntegral(Delta(j,u), frequency, bias, p_max-1, Temperature, Cutoff, &
-                        GammaC, N_int, WW, gau, fermi, ufermi)
+                        GammaC, N_int, fermi, ufermi)
 
         call Orbital_overlaps(lambda, j, u, orb, g_up, g_dn, Ndim, Lvluj, Ljulv)
         fourier_component: do nfour = -NCF, NCF
@@ -89,103 +89,157 @@ CONTAINS
         endif
       end function FermiDist
 
-      
-        subroutine ExtendedFermiIntegral (D, frequency, bias, p_max, Temperature, Cutoff, GammaC,&
-                 N, WW, gau, fermi, ufermi)
+      subroutine ExtendedFermiIntegral ( D, frequency, V, p_max, T, Cutoff, GammaC, N,  fermiA, ufermiA)
         implicit none
-        
-        integer, intent(in) :: N, p_max
-        real (q), intent(in) :: D, bias, Temperature, Cutoff, frequency, WW, gau
+        real (q), intent(in) :: D, V, T, Cutoff, frequency
         complex (qc), intent(in) :: GammaC
+        real (q) :: e, step_e
+        integer :: i, N, p, p_max, p_ind
+        complex (qc), dimension(2*p_max+1):: fermiA, ufermiA
+        real (q), dimension(N) :: f
+        complex (qc) :: denom, udenom
+        ! I11_p = i/pi \int_{-Cutoff}^{Cutoff} dE f(E,V)/(E-D+p*frequency+ui\Gamma_C)
+        ! I21_p = -i/pi \int_{-Cutoff}^{Cutoff} dE (1-f(E,V))/(E+D+p*frequency-ui\Gamma_C)
+        ! f(E,V) = \frac{1}{\exp(\beta (E-V)) + 1} Fermi distribution with V as fermi level
         
-        complex (qc), intent(out), dimension(2*p_max+1) :: fermi, ufermi
-
-        real (q) :: e, step_e, gaushift, WWsq, imG, gausian
-        real (q) :: rGammaC, iGammaC, rGammaCsq, iGammaCsq
-        real (q), dimension(N) :: f, uf        
-        integer :: i, p, p_ind
-
-!       The FermiIntStep function is used to calculate the fermi integral
-!       G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
-!       A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
-!       uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
-!       fermi  += int f(e) * A(e) * G(e) de
-!       ufermi += int (1-f(e)) * uA(e) * G(e) de
-!       f(E,V) = \frac{1}{\exp(\beta (E-V)) + 1} Fermi distribution with V as fermi level
-
-!       TODO: think about how to organize this, probably should splie fermi and ufermi
-!       calculate all fermi contributions they are the same for all integrals
-        step_e = 2*Cutoff/(N-1)/Temperature ! rescaling to units T = 1 
-        e= -(Cutoff - D + bias)/Temperature
+        ! TODO: the normal integrals could be included in this by setting p_max = 0
+        
+        ! calculate all fermi contributions they are the same for all integrals
+        step_e = 2*Cutoff/(N-1)/T ! rescaling with to units T = 1 
+        e= -(Cutoff + V)/T
+        
         fstep: do i = 1, N
              e = e + step_e
              f(i) = FermiDist (e)
         enddo fstep
-
-        e = -(Cutoff + D + bias)/Temperature
-        Ufstep: do i = 1, N
-             e = e + step_e
-             uf(i) = 1 - FermiDist (e)
-        enddo ufstep
-        
+   
         step_e = 2*Cutoff/(N-1) ! now in atomic units
         
-        imG = 1._q
-        gaushift = int((gau-1)/(1+gau))
-        
-        rGammaC = dble (GammaC)
-        iGammaC = dimag(GammaC)
-        rGammaCsq = rGammaC**2
-        iGammaCsq = iGammaC**2
-        WWsq = WW**2
-
         ploop: do p = -p_max, p_max
-                p_ind = p+p_max+1
-   
-                e = -Cutoff + p*frequency
-                fermi(p_ind)  = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(1))
-                ufermi(p_ind) = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(1))
-
-                istep: do i = 2, N - 1
-                e = e + step_e
-                fermi(p_ind)  = fermi(p_ind)  + FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(i))
-                ufermi(p_ind) = ufermi(p_ind) + FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(i))
-                
-                enddo istep
+             p_ind = p+p_max+1
              
-             e = Cutoff + p*frequency
-             fermi(p_ind)  = fermi(p_ind) +  .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        -rGammaC, rGammaCsq, f(N))
-             ufermi(p_ind) = ufermi(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
-                        iGammaC, iGammaCsq, uf(N))
+             ! The constant part of the denominator 
+             denom =  - D + p*frequency + ui*GammaC
+             udenom = D + p*frequency - ui*GammaC
+   
+             e = - Cutoff
+             fermiA(p_ind) = 0.5*f(1)/(e+denom)
+             ufermiA(p_ind) = 0.5*(1-f(1))/(e+udenom)   
+             
+             istep: do i = 2, N-1
+                  e= e + step_e
+                  fermiA(p_ind)=fermiA(p_ind) + f(i)/(e+denom)
+                  ufermiA(p_ind)=ufermiA(p_ind) + (1-f(i))/(e+udenom)
+             enddo istep
+             
+             e = Cutoff
+             fermiA(p_ind) = fermiA(p_ind) + 0.5*f(N)/(e+denom)
+             ufermiA(p_ind) = ufermiA(p_ind) + 0.5*(1-f(N))/(e+udenom)
+   
+             fermiA(p_ind) = step_e*ui*fermiA(p_ind)/pi_d
+             ufermiA(p_ind) = -step_e*ui*ufermiA(p_ind)/pi_d
    
         enddo ploop
-        
-        fermi  =  step_e*ui*fermi/pi_d
-        ufermi = -step_e*ui*ufermi/pi_d
-
         return
         end subroutine ExtendedFermiIntegral
 
-
-        function FermiIntStep (e, WWsq, gaushift, gau, imG, riGammaC, riGammaCsq, fd) result (fermiInt)
-        implicit none
-        real (q), intent(in) :: e, WWsq, gaushift, gau, imG, riGammaC, riGammaCsq, fd
-        real (q) :: esq, gausian
-        complex (qc) :: fermiInt, integrand
-                
-                esq = e**2
-                gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
-                integrand  = e/(esq + imG*riGammaCsq) + ui*riGammaC/(esq + riGammaCsq)
-                fermiInt = fd * integrand * gausian
-        return
-        end function FermiIntStep
-
-
+      
+        !subroutine ExtendedFermiIntegral (D, frequency, bias, p_max, Temperature, Cutoff, GammaC,&
+        !         N, WW, gau, fermi, ufermi)
+        !implicit none
+        !
+        !integer, intent(in) :: N, p_max
+        !real (q), intent(in) :: D, bias, Temperature, Cutoff, frequency, WW, gau
+        !complex (qc), intent(in) :: GammaC
+        !
+        !complex (qc), intent(out), dimension(2*p_max+1) :: fermi, ufermi
+!
+        !real (q) :: e, step_e, gaushift, WWsq, imG, gausian
+        !real (q) :: rGammaC, iGammaC, rGammaCsq, iGammaCsq
+        !real (q), dimension(N) :: f, uf        
+        !integer :: i, p, p_ind
+!
+!       !The FermiIntStep function is used to calculate the fermi integral
+!       !G(e) = gau*dexp(-0.5*esq/WWsq) - gaushift
+!       !A(e)  = (e/(esq + imG*Re(GammaC)**2) - ui*Re(GammaC)/(esq + Re(GammaC)**2))
+!       !uA(e) = (e/(esq + imG*Im(GammaC)**2) + ui*Im(GammaC)/(esq + Im(GammaC)**2))
+!       !fermi  += int f(e) * A(e) * G(e) de
+!       !ufermi += int (1-f(e)) * uA(e) * G(e) de
+!       !f(E,V) = \frac{1}{\exp(\beta (E-V)) + 1} Fermi distribution with V as fermi level
+!
+!       !TODO: think about how to organize this, probably should splie fermi and ufermi
+!       !calculate all fermi contributions they are the same for all integrals
+        !step_e = 2*Cutoff/(N-1)/Temperature ! rescaling to units T = 1 
+        !e= -(Cutoff - D + bias)/Temperature
+        !fstep: do i = 1, N
+        !     e = e + step_e
+        !     f(i) = FermiDist (e)
+        !enddo fstep
+!
+        !e = -(Cutoff + D + bias)/Temperature
+        !Ufstep: do i = 1, N
+        !     e = e + step_e
+        !     uf(i) = 1 - FermiDist (e)
+        !enddo ufstep
+        !
+        !step_e = 2*Cutoff/(N-1) ! now in atomic units
+        !
+        !imG = 1._q
+        !gaushift = int((gau-1)/(1+gau))
+        !
+        !rGammaC = dble (GammaC)
+        !iGammaC = dimag(GammaC)
+        !rGammaCsq = rGammaC**2
+        !iGammaCsq = iGammaC**2
+        !WWsq = WW**2
+!
+        !ploop: do p = -p_max, p_max
+        !        p_ind = p+p_max+1
+   !
+        !        e = -Cutoff + p*frequency
+        !        fermi(p_ind)  = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                -rGammaC, rGammaCsq, f(1))
+        !        ufermi(p_ind) = .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                iGammaC, iGammaCsq, uf(1))
+!
+        !        istep: do i = 2, N - 1
+        !        e = e + step_e
+        !        fermi(p_ind)  = fermi(p_ind)  + FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                -rGammaC, rGammaCsq, f(i))
+        !        ufermi(p_ind) = ufermi(p_ind) + FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                iGammaC, iGammaCsq, uf(i))
+        !        
+        !        enddo istep
+        !     
+        !     e = Cutoff + p*frequency
+        !     fermi(p_ind)  = fermi(p_ind) +  .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                -rGammaC, rGammaCsq, f(N))
+        !     ufermi(p_ind) = ufermi(p_ind) + .5*FermiIntStep(e, WWsq, gaushift, gau, imG,&
+        !                iGammaC, iGammaCsq, uf(N))
+   !
+        !enddo ploop
+        !
+        !fermi  =  step_e*ui*fermi/pi_d
+        !ufermi = -step_e*ui*ufermi/pi_d
+!
+        !return
+        !end subroutine ExtendedFermiIntegral
+!
+!
+        !function FermiIntStep (e, WWsq, gaushift, gau, imG, riGammaC, riGammaCsq, fd) result (fermiInt)
+        !implicit none
+        !real (q), intent(in) :: e, WWsq, gaushift, gau, imG, riGammaC, riGammaCsq, fd
+        !real (q) :: esq, gausian
+        !complex (qc) :: fermiInt, integrand
+        !        
+        !        esq = e**2
+        !        gausian = gau*dexp(-0.5*esq/WWsq) - gaushift
+        !        integrand  = e/(esq + imG*riGammaCsq) + ui*riGammaC/(esq + riGammaCsq)
+        !        fermiInt = fd * integrand * gausian
+        !return
+        !end function FermiIntStep
+!
+!
         function Bessel_K(z, Adrive, p_max) result (Kbess)
         implicit none
         real (q), intent (in) :: z
