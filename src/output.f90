@@ -11,7 +11,7 @@ CONTAINS
     integer, intent(in) :: NCF, Ndim
 
     integer :: l, j, u, v, pn
-    complex(qc) :: G_temp(NCF, 2)
+    complex(qc) :: G_temp(2*NCF+1, 2)
 
     open (unit_rates, file='rates_floquet.dat')
     open (unit_rates+1, file='rates_floquet0.dat')
