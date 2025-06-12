@@ -35,7 +35,7 @@ CONTAINS
                 dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
         enddo 
 
-!       simplified version of writing the rates, only Floquet 0  
+!       simplified version of writing the rates, only 0th component  
         write (unit_rates+1,*) l,j,u,v,& 
             dble(G_temp(NCF+1,2)), dimag(G_temp(NCF+1,2)),&
             dble(G_temp(NCF+1,1)), dimag(G_temp(NCF+1,1))
