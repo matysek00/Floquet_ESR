@@ -265,7 +265,7 @@ CONTAINS
         subroutine Orbital_overlaps (lambda, j, u, orb, g_up, g_dn, Ndim, overlapvluj, overlapjulv)
         implicit none
         integer, intent(in):: Ndim, j, u, orb
-        complex (qc), dimension(Ndim, Ndim, 2), intent (in) :: lambda 
+        complex (qc), dimension(:, :, :), intent (in) :: lambda 
         complex (qc), intent (in) :: g_up, g_dn
         complex (qc), dimension(Ndim, Ndim), intent (out) :: overlapvluj, overlapjulv
         integer :: v, l, lorb 
