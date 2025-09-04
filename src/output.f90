@@ -25,15 +25,37 @@ CONTAINS
         G_temp = G(l,j,u,v,:,:)*hartree ! convert to Hartree
 
         if ((G_temp(NCF+1,1)+G_temp(NCF+1,2)) == (0.0_q,0.0_q)) then
-!           if the rates are zero, we do not write them
+            !           if the rates are zero, we do not write them
             cycle
         endif
         
-        do pn = -NCF, NCF
+        !do pn = -NCF, NCF
+        !    write (unit_rates,*) l,j,u,v,pn,& 
+        !        dble(G_temp(pn+NCF+1,2)), dimag(G_temp(pn+(NCF+1),2)),&
+        !        dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
+        !enddo 
+
+!       writing the zeroth component explicitely as in the loop it would be written twice
+        write (unit_rates,*) l,j,u,v,0,& 
+                dble(G_temp(NCF+1,2)), dimag(G_temp((NCF+1),2)),&
+                dble(G_temp(NCF+1,1)), dimag(G_temp((NCF+1),1))
+
+        pnloop: do pn = 1, NCF
+            if ((G_temp(NCF+1,1)+G_temp(NCF+1,2)).eq.zero) then
+!           write until reaching a vanishing fourier component. 
+            exit pnloop
+            endif
+        
             write (unit_rates,*) l,j,u,v,pn,& 
                 dble(G_temp(pn+NCF+1,2)), dimag(G_temp(pn+(NCF+1),2)),&
                 dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
-        enddo 
+
+            write (unit_rates,*) l,j,u,v,pn,& 
+                dble(G_temp(-pn+NCF+1,2)), dimag(G_temp(-pn+(NCF+1),2)),&
+                dble(G_temp(-pn+NCF+1,1)), dimag(G_temp(-pn+(NCF+1),1))
+
+        enddo pnloop
+            
 
 !       simplified version of writing the rates, only 0th component  
         write (unit_rates+1,*) l,j,u,v,& 
