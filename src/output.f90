@@ -29,19 +29,13 @@ CONTAINS
             cycle
         endif
         
-        !do pn = -NCF, NCF
-        !    write (unit_rates,*) l,j,u,v,pn,& 
-        !        dble(G_temp(pn+NCF+1,2)), dimag(G_temp(pn+(NCF+1),2)),&
-        !        dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
-        !enddo 
-
 !       writing the zeroth component explicitely as in the loop it would be written twice
         write (unit_rates,*) l,j,u,v,0,& 
                 dble(G_temp(NCF+1,2)), dimag(G_temp((NCF+1),2)),&
                 dble(G_temp(NCF+1,1)), dimag(G_temp((NCF+1),1))
 
         pnloop: do pn = 1, NCF
-            if ((G_temp(NCF+1,1)+G_temp(NCF+1,2)).eq.zero) then
+            if ((G_temp(pn+NCF+1,1)+G_temp(pn+NCF+1,2)).eq.zero) then
 !           write until reaching a vanishing fourier component. 
             exit pnloop
             endif
@@ -50,7 +44,7 @@ CONTAINS
                 dble(G_temp(pn+NCF+1,2)), dimag(G_temp(pn+(NCF+1),2)),&
                 dble(G_temp(pn+NCF+1,1)), dimag(G_temp(pn+(NCF+1),1))
 
-            write (unit_rates,*) l,j,u,v,pn,& 
+            write (unit_rates,*) l,j,u,v,-pn,& 
                 dble(G_temp(-pn+NCF+1,2)), dimag(G_temp(-pn+(NCF+1),2)),&
                 dble(G_temp(-pn+NCF+1,1)), dimag(G_temp(-pn+(NCF+1),1))
 
@@ -108,8 +102,14 @@ subroutine write_cur_out(current, NCF)
 
     open (unit_curr, file='Current_0.dat')
     write (unit_curr, *) 'n Current(pA)'
-    do pn = -NCF, NCF
+    write (unit_curr, *) 0, current(NCF+1)*pA
+    do pn = 1, NCF
+        if ((current(pn+NCF+1)).eq.zero) then
+!           write until reaching a vanishing fourier component. 
+            exit
+        endif
         write (unit_curr, *) pn, current(pn+NCF+1)*pA
+        write (unit_curr, *) -pn, current(-pn+NCF+1)*pA
     enddo
     close (unit_curr)
 
@@ -130,9 +130,11 @@ subroutine write_pop_out(Rho, NCF, Ndim)
     open  (unit_pop, file='POPULATIONS.dat')
 
     write (unit_pop,*) 'n Rho(1,1,n) Rho(2,2,n) ... Rho(Ndim,Ndim,n)'
-
-    do pn = -NCF, NCF
+    write (unit_pop,*) 0, (dble(Rho (l,l,NCF+1)), l=1, Ndim)
+    
+    do pn = 0, NCF
         write (unit_pop,*) pn, (dble(Rho (l,l,pn+NCF+1)), l=1, Ndim)
+        write (unit_pop,*) -pn, (dble(Rho (l,l,-pn+NCF+1)), l=1, Ndim)
     enddo
     close (unit_pop)
 
@@ -154,11 +156,16 @@ subroutine write_coh_out(Rho, NCF)
     
     do u = 1, Ndim
     do v = 1, Ndim
-        do pn = -NCF, NCF    
-        if ((Rho (u,v,pn+NCF+1)).ne.zero) then
-            write (unit_coh,*) u,v,pn, dble(Rho (u,v,pn+NCF+1)), dimag(Rho (u,v,pn+NCF+1))
+        write (unit_coh,*) u,v,0, dble(Rho (u,v,NCF+1)), dimag(Rho (u,v,NCF+1))
+
+        pnloop: do pn = 0, NCF    
+        if ((Rho (u,v,pn+NCF+1)).eq.zero) then
+            exit pnloop
         endif
-        enddo
+        write (unit_coh,*) u,v,pn, dble(Rho (u,v,pn+NCF+1)), dimag(Rho (u,v,pn+NCF+1))
+        write (unit_coh,*) u,v,-pn, dble(Rho (u,v,-pn+NCF+1)), dimag(Rho (u,v,-pn+NCF+1))
+        enddo pnloop
+
     enddo
     enddo
     
