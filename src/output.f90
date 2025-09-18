@@ -158,7 +158,7 @@ subroutine write_coh_out(Rho, NCF)
     do v = 1, Ndim
         write (unit_coh,*) u,v,0, dble(Rho (u,v,NCF+1)), dimag(Rho (u,v,NCF+1))
 
-        pnloop: do pn = 0, NCF    
+        pnloop: do pn = 1, NCF    
         if ((Rho (u,v,pn+NCF+1)).eq.zero) then
             exit pnloop
         endif
